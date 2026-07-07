@@ -20,11 +20,20 @@ Adafruit_ImageReader reader(SD);
 
 uint16_t currentImage = FIRST_IMAGE;
 
-void showStatus(const __FlashStringHelper *message) {
+void drawStatusMessage() {
   tft.fillScreen(ILI9341_BLACK);
   tft.setCursor(8, 8);
   tft.setTextColor(ILI9341_WHITE);
   tft.setTextSize(2);
+}
+
+void showStatus(const __FlashStringHelper *message) {
+  drawStatusMessage();
+  tft.print(message);
+}
+
+void showStatus(const char *message) {
+  drawStatusMessage();
   tft.print(message);
 }
 
