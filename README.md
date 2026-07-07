@@ -23,6 +23,16 @@ Install these libraries with the Arduino IDE Library Manager:
 
 The sketch also uses the standard Arduino `SPI` library. The Adafruit ImageReader library requires the SdFat API, so the sketch intentionally uses `SdFat` instead of Arduino's built-in `SD` library.
 
+## SD card startup troubleshooting
+
+During startup, the sketch now forces the TFT and SD chip-select pins inactive before SD initialization and retries SD startup at 10 MHz, 4 MHz, and 1 MHz. This helps with shields that leave the TFT selected on the shared SPI bus or SD cards that are unreliable at the first clock speed.
+
+If startup still stops at `SD init failed`, check the Serial Monitor for the attempted speeds, then verify that:
+
+- The SD card is fully inserted.
+- The SD card is formatted as FAT16 or FAT32.
+- Your shield's SD chip-select pin matches `SD_CS` in `arduframe.ino`; the default is pin 4.
+
 ## SD card image layout
 
 Place BMP files in the root of the SD card using these exact names:
