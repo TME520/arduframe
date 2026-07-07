@@ -1,0 +1,19 @@
+profiles:
+  uno-r4-minima:
+    notes: Arduino UNO R4 Minima with an UNO-style 8-bit parallel TFT shield and SD card.
+    fqbn: arduino:renesas_uno:minima
+    platforms:
+      - platform: arduino:renesas_uno
+    libraries:
+      - Adafruit GFX Library
+      - GFX Library for Arduino
+      - SdFat - Adafruit Fork
+  uno-r4-wifi:
+    notes: Arduino UNO R4 WiFi with an UNO-style 8-bit parallel TFT shield and SD card.
+    fqbn: arduino:renesas_uno:unor4wifi
+    platforms:
+      - platform: arduino:renesas_uno
+    libraries:
+      - Adafruit GFX Library
+      - GFX Library for Arduino
+      - SdFat - Adafruit Fork

@@ -32,6 +32,18 @@ Install these libraries with the Arduino IDE Library Manager:
 - `GFX Library for Arduino`
 - `SdFat - Adafruit Fork`
 
+If compilation stops with `Arduino_GFX_Library.h: No such file or directory`, the `GFX Library for Arduino` package is missing from your Arduino libraries. Install that exact package name from Library Manager, then compile again.
+
+The sketch also includes `sketch.yaml` build profiles for Arduino CLI users. These profiles record the UNO R4 board package and the required libraries, so dependencies can be installed and reused with a profile-based build:
+
+```sh
+arduino-cli lib update-index
+arduino-cli core update-index
+arduino-cli compile --profile uno-r4-minima .
+# or, for an UNO R4 WiFi:
+arduino-cli compile --profile uno-r4-wifi .
+```
+
 The sketch also uses the standard Arduino `SPI` library. BMP files are decoded directly from `SdFat`, so the Adafruit ImageReader library is not required.
 
 ## SD card startup troubleshooting
