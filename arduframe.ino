@@ -1,15 +1,13 @@
 #include <SPI.h>
 #include <SdFat.h>
 #include <Adafruit_GFX.h>
-#include <Adafruit_ILI9341.h>
-#include <Adafruit_ImageReader.h>
+#include <MCUFRIEND_kbv.h>
 
-// Pin mapping for the TFT shield and SD card reader.
-// The SD socket reported as SD_SS uses pin 10 for chip select, while the
-// display chip select must be on a separate pin so both devices can share SPI.
-// If your shield uses different chip-select/data-command pins, change them here.
-#define TFT_CS 8
-#define TFT_DC 9
+// Pin mapping for common 2.8" UNO-style parallel TFT shields.
+// These shields do not use SPI for the LCD; the control/data pins are fixed
+// by the shield wiring and the MCUFRIEND_kbv library drives them directly:
+//   LCD_RST=A4, LCD_CS=A3, LCD_RS/LCD_CD=A2, LCD_WR=A1, LCD_RD=A0
+//   LCD_D0=8, LCD_D1=9, LCD_D2=2, LCD_D3=3, LCD_D4=4, LCD_D5=5, LCD_D6=6, LCD_D7=7
 #define SD_CS 10
 
 const uint16_t FIRST_IMAGE = 1;
@@ -18,12 +16,28 @@ const unsigned long SLIDE_DURATION_MS = 10000UL;
 const unsigned long SERIAL_WAIT_MS = 3000UL;
 const unsigned long SERIAL_BAUD = 115200UL;
 const uint8_t SD_INIT_SPEEDS_MHZ[] = {10, 4, 1};
+const uint16_t BMP_READ_BUFFER_PIXELS = 40;
 
-Adafruit_ILI9341 tft(TFT_CS, TFT_DC);
+MCUFRIEND_kbv tft;
 SdFat SD;
-Adafruit_ImageReader reader(SD);
 
 uint16_t currentImage = FIRST_IMAGE;
+
+uint16_t read16(FsFile &file) {
+  uint16_t value;
+  value = (uint8_t)file.read();
+  value |= (uint16_t)file.read() << 8;
+  return value;
+}
+
+uint32_t read32(FsFile &file) {
+  uint32_t value;
+  value = (uint8_t)file.read();
+  value |= (uint32_t)file.read() << 8;
+  value |= (uint32_t)file.read() << 16;
+  value |= (uint32_t)file.read() << 24;
+  return value;
+}
 
 void logMessage(const __FlashStringHelper *message) {
   Serial.println(message);
@@ -34,9 +48,9 @@ void logMessage(const char *message) {
 }
 
 void drawStatusMessage() {
-  tft.fillScreen(ILI9341_BLACK);
+  tft.fillScreen(0x0000);
   tft.setCursor(8, 8);
-  tft.setTextColor(ILI9341_WHITE);
+  tft.setTextColor(0xFFFF);
   tft.setTextSize(2);
 }
 
@@ -57,12 +71,7 @@ void buildImageName(uint16_t imageNumber, char *buffer, size_t bufferSize) {
 }
 
 bool initializeSdCard() {
-  // Keep all SPI chip-select lines inactive before talking to the SD card.
-  // Some TFT shields can leave the display selected after tft.begin(), which
-  // prevents the SD card from answering during initialization.
-  pinMode(TFT_CS, OUTPUT);
   pinMode(SD_CS, OUTPUT);
-  digitalWrite(TFT_CS, HIGH);
   digitalWrite(SD_CS, HIGH);
 
   for (uint8_t i = 0; i < sizeof(SD_INIT_SPEEDS_MHZ); i++) {
@@ -71,7 +80,6 @@ bool initializeSdCard() {
     Serial.print(speedMhz);
     Serial.println(F(" MHz"));
 
-    digitalWrite(TFT_CS, HIGH);
     digitalWrite(SD_CS, HIGH);
     if (SD.begin(SD_CS, SD_SCK_MHZ(speedMhz))) {
       Serial.print(F("SD initialized at "));
@@ -92,6 +100,99 @@ bool initializeSdCard() {
   return false;
 }
 
+bool drawBmp(const char *filename, int16_t x, int16_t y) {
+  FsFile bmpFile = SD.open(filename, O_RDONLY);
+  if (!bmpFile) {
+    Serial.println(F("BMP open failed"));
+    return false;
+  }
+
+  if (read16(bmpFile) != 0x4D42) {
+    Serial.println(F("BMP signature mismatch"));
+    bmpFile.close();
+    return false;
+  }
+
+  (void)read32(bmpFile); // File size.
+  (void)read32(bmpFile); // Creator bytes.
+  uint32_t imageOffset = read32(bmpFile);
+  uint32_t headerSize = read32(bmpFile);
+  int32_t bmpWidth = (int32_t)read32(bmpFile);
+  int32_t bmpHeight = (int32_t)read32(bmpFile);
+
+  if (read16(bmpFile) != 1) {
+    Serial.println(F("BMP planes value is invalid"));
+    bmpFile.close();
+    return false;
+  }
+
+  uint16_t bitDepth = read16(bmpFile);
+  uint32_t compression = read32(bmpFile);
+  if (headerSize < 40 || bmpWidth <= 0 || bmpHeight == 0 || bitDepth != 24 || compression != 0) {
+    Serial.println(F("BMP must be uncompressed 24-bit format"));
+    bmpFile.close();
+    return false;
+  }
+
+  bool flip = true;
+  if (bmpHeight < 0) {
+    bmpHeight = -bmpHeight;
+    flip = false;
+  }
+
+  int16_t drawWidth = bmpWidth;
+  int16_t drawHeight = bmpHeight;
+  if ((x >= tft.width()) || (y >= tft.height())) {
+    bmpFile.close();
+    return true;
+  }
+  if ((x + drawWidth - 1) >= tft.width()) {
+    drawWidth = tft.width() - x;
+  }
+  if ((y + drawHeight - 1) >= tft.height()) {
+    drawHeight = tft.height() - y;
+  }
+
+  uint32_t rowSize = ((uint32_t)bmpWidth * 3 + 3) & ~3;
+  uint8_t sdbuffer[3 * BMP_READ_BUFFER_PIXELS];
+  uint16_t lcdbuffer[BMP_READ_BUFFER_PIXELS];
+
+  tft.setAddrWindow(x, y, x + drawWidth - 1, y + drawHeight - 1);
+  for (int16_t row = 0; row < drawHeight; row++) {
+    uint32_t rowPosition = imageOffset + (flip ? (bmpHeight - 1 - row) : row) * rowSize;
+    if (!bmpFile.seekSet(rowPosition)) {
+      Serial.println(F("BMP row seek failed"));
+      bmpFile.close();
+      return false;
+    }
+
+    int16_t remaining = drawWidth;
+    while (remaining > 0) {
+      uint16_t pixelsToRead = remaining > BMP_READ_BUFFER_PIXELS ? BMP_READ_BUFFER_PIXELS : remaining;
+      uint16_t bytesToRead = pixelsToRead * 3;
+      if (bmpFile.read(sdbuffer, bytesToRead) != bytesToRead) {
+        Serial.println(F("BMP row read failed"));
+        bmpFile.close();
+        return false;
+      }
+
+      uint8_t *src = sdbuffer;
+      for (uint16_t i = 0; i < pixelsToRead; i++) {
+        uint8_t b = *src++;
+        uint8_t g = *src++;
+        uint8_t r = *src++;
+        lcdbuffer[i] = tft.color565(r, g, b);
+      }
+
+      tft.pushColors(lcdbuffer, pixelsToRead, row == 0 && remaining == drawWidth);
+      remaining -= pixelsToRead;
+    }
+  }
+
+  bmpFile.close();
+  return true;
+}
+
 void displayImage(uint16_t imageNumber) {
   char filename[22];
   buildImageName(imageNumber, filename, sizeof(filename));
@@ -101,16 +202,13 @@ void displayImage(uint16_t imageNumber) {
   Serial.print(F(": "));
   Serial.println(filename);
 
-  ImageReturnCode result = reader.drawBMP(filename, tft, 0, 0);
-  if (result != IMAGE_SUCCESS) {
+  if (!drawBmp(filename, 0, 0)) {
     Serial.print(F("Image load failed for "));
-    Serial.print(filename);
-    Serial.print(F(" with ImageReturnCode "));
-    Serial.println(result);
+    Serial.println(filename);
 
-    tft.fillScreen(ILI9341_BLACK);
+    tft.fillScreen(0x0000);
     tft.setCursor(8, 8);
-    tft.setTextColor(ILI9341_RED);
+    tft.setTextColor(0xF800);
     tft.setTextSize(2);
     tft.print(F("Could not load:"));
     tft.setCursor(8, 34);
@@ -131,22 +229,22 @@ void setup() {
   Serial.println(F("arduframe starting"));
   Serial.print(F("Serial baud: "));
   Serial.println(SERIAL_BAUD);
-  Serial.print(F("TFT_CS="));
-  Serial.print(TFT_CS);
-  Serial.print(F(", TFT_DC="));
-  Serial.print(TFT_DC);
-  Serial.print(F(", SD_CS="));
+  Serial.print(F("LCD interface: UNO-style 8-bit parallel shield, SD_CS="));
   Serial.println(SD_CS);
 
-  pinMode(TFT_CS, OUTPUT);
   pinMode(SD_CS, OUTPUT);
-  digitalWrite(TFT_CS, HIGH);
   digitalWrite(SD_CS, HIGH);
 
   Serial.println(F("Initializing TFT..."));
-  tft.begin();
+  uint16_t displayId = tft.readID();
+  Serial.print(F("TFT ID=0x"));
+  Serial.println(displayId, HEX);
+  if (displayId == 0xD3D3 || displayId == 0xFFFF || displayId == 0x0000) {
+    Serial.println(F("Using ILI9341 fallback ID 0x9341"));
+    displayId = 0x9341;
+  }
+  tft.begin(displayId);
   tft.setRotation(1);
-  digitalWrite(TFT_CS, HIGH);
   Serial.println(F("TFT initialized with rotation 1"));
   showStatus(F("Starting SD..."));
 

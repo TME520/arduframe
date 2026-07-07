@@ -4,29 +4,39 @@ A digital photo frame for an Arduino UNO R4 and a 2.8" Arduino TFT touch shield 
 
 ## Hardware
 
-This sketch targets an Arduino-compatible 2.8" TFT touch shield using an ILI9341 display controller and an SD card reader. The default pin mapping targets shields whose SD socket is labeled `SD_SS 10`:
+This sketch targets an Arduino-compatible 2.8" UNO-style parallel TFT touch shield with an SD card reader. The LCD is driven with the `MCUFRIEND_kbv` library using the shield's fixed 8-bit parallel pin mapping:
 
-- TFT chip select: pin 8
-- TFT data/command: pin 9
+- `LCD_RST`: A4
+- `LCD_CS`: A3
+- `LCD_RS` / `LCD_CD`: A2
+- `LCD_WR`: A1
+- `LCD_RD`: A0
+- `LCD_D0`: pin 8
+- `LCD_D1`: pin 9
+- `LCD_D2`: pin 2
+- `LCD_D3`: pin 3
+- `LCD_D4`: pin 4
+- `LCD_D5`: pin 5
+- `LCD_D6`: pin 6
+- `LCD_D7`: pin 7
 - SD chip select / `SD_SS`: pin 10
 - SD SPI data/clock: pins 11, 12, and 13
 
-If your shield uses different pins, update `TFT_CS`, `TFT_DC`, and `SD_CS` near the top of `arduframe.ino`. The TFT and SD chip-select pins must be different so the sketch can deselect one SPI device before talking to the other.
+The LCD on this shield is not an SPI display, so `TFT_CS` and `TFT_DC` are not configurable sketch constants. The SD card still uses SPI and must use the `SD_CS` value near the top of `arduframe.ino`.
 
 ## Arduino libraries
 
 Install these libraries with the Arduino IDE Library Manager:
 
 - `Adafruit GFX Library`
-- `Adafruit ILI9341`
-- `Adafruit ImageReader Library`
+- `MCUFRIEND_kbv`
 - `SdFat - Adafruit Fork`
 
-The sketch also uses the standard Arduino `SPI` library. The Adafruit ImageReader library requires the SdFat API, so the sketch intentionally uses `SdFat` instead of Arduino's built-in `SD` library.
+The sketch also uses the standard Arduino `SPI` library. BMP files are decoded directly from `SdFat`, so the Adafruit ImageReader library is not required.
 
 ## SD card startup troubleshooting
 
-During startup, the sketch now forces the TFT and SD chip-select pins inactive before SD initialization and retries SD startup at 10 MHz, 4 MHz, and 1 MHz. This helps with shields that leave the TFT selected on the shared SPI bus or SD cards that are unreliable at the first clock speed.
+During startup, the sketch retries SD startup at 10 MHz, 4 MHz, and 1 MHz. This helps with SD cards that are unreliable at the first clock speed.
 
 If startup still stops at `SD init failed`, check the Serial Monitor for the attempted speeds, then verify that:
 
@@ -45,7 +55,7 @@ slideshow002.bmp
 slideshow999.bmp
 ```
 
-For best results, use uncompressed BMP images sized to the TFT resolution, usually 320x240 pixels when the sketch uses `tft.setRotation(1)`.
+Use uncompressed 24-bit BMP images sized to the TFT resolution, usually 320x240 pixels when the sketch uses `tft.setRotation(1)`.
 
 ## Behavior
 
