@@ -1,11 +1,6 @@
 #include <SPI.h>
 #include <SdFat.h>
-
-#if __has_include(<Arduino_GFX_Library.h>)
 #include <Arduino_GFX_Library.h>
-#else
-#error "Missing Arduino_GFX_Library.h. In Arduino IDE 1.8.x, install Library Manager package: GFX Library for Arduino. Arduino IDE does not install sketch.yaml dependencies automatically; sketch.yaml profiles are for arduino-cli."
-#endif
 
 // Pin mapping for common 2.8" UNO-style parallel TFT shields.
 // These shields do not use SPI for the LCD; the control/data pins are fixed
