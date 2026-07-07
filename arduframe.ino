@@ -15,6 +15,7 @@ const uint16_t LAST_IMAGE = 999;
 const unsigned long SLIDE_DURATION_MS = 10000UL;
 const unsigned long SERIAL_WAIT_MS = 3000UL;
 const unsigned long SERIAL_BAUD = 115200UL;
+const uint8_t SD_INIT_SPEEDS_MHZ[] = {10, 4, 1};
 
 Adafruit_ILI9341 tft(TFT_CS, TFT_DC);
 SdFat SD;
@@ -51,6 +52,42 @@ void showStatus(const char *message) {
 
 void buildImageName(uint16_t imageNumber, char *buffer, size_t bufferSize) {
   snprintf(buffer, bufferSize, "/slideshow%03u.bmp", imageNumber);
+}
+
+bool initializeSdCard() {
+  // Keep all SPI chip-select lines inactive before talking to the SD card.
+  // Some TFT shields can leave the display selected after tft.begin(), which
+  // prevents the SD card from answering during initialization.
+  pinMode(TFT_CS, OUTPUT);
+  pinMode(SD_CS, OUTPUT);
+  digitalWrite(TFT_CS, HIGH);
+  digitalWrite(SD_CS, HIGH);
+
+  for (uint8_t i = 0; i < sizeof(SD_INIT_SPEEDS_MHZ); i++) {
+    uint8_t speedMhz = SD_INIT_SPEEDS_MHZ[i];
+    Serial.print(F("Trying SD init at "));
+    Serial.print(speedMhz);
+    Serial.println(F(" MHz"));
+
+    digitalWrite(TFT_CS, HIGH);
+    digitalWrite(SD_CS, HIGH);
+    if (SD.begin(SD_CS, SD_SCK_MHZ(speedMhz))) {
+      Serial.print(F("SD initialized at "));
+      Serial.print(speedMhz);
+      Serial.println(F(" MHz"));
+      return true;
+    }
+
+    Serial.print(F("SD init attempt failed at "));
+    Serial.print(speedMhz);
+    Serial.println(F(" MHz"));
+    delay(250);
+  }
+
+  Serial.println(F("SD init failed after all SPI speed attempts"));
+  Serial.println(F("Check that the card is fully inserted and formatted as FAT16/FAT32"));
+  Serial.println(F("Check shield SD_CS wiring/jumper; this sketch currently uses pin 4"));
+  return false;
 }
 
 void displayImage(uint16_t imageNumber) {
@@ -99,14 +136,20 @@ void setup() {
   Serial.print(F(", SD_CS="));
   Serial.println(SD_CS);
 
+  pinMode(TFT_CS, OUTPUT);
+  pinMode(SD_CS, OUTPUT);
+  digitalWrite(TFT_CS, HIGH);
+  digitalWrite(SD_CS, HIGH);
+
   Serial.println(F("Initializing TFT..."));
   tft.begin();
   tft.setRotation(1);
+  digitalWrite(TFT_CS, HIGH);
   Serial.println(F("TFT initialized with rotation 1"));
   showStatus(F("Starting SD..."));
 
   Serial.println(F("Initializing SD card..."));
-  if (!SD.begin(SD_CS, SD_SCK_MHZ(10))) {
+  if (!initializeSdCard()) {
     showStatus(F("SD init failed"));
     Serial.println(F("Halting because SD init failed"));
     Serial.flush();
