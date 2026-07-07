@@ -4,7 +4,7 @@
 #if __has_include(<Arduino_GFX_Library.h>)
 #include <Arduino_GFX_Library.h>
 #else
-#error "Missing Arduino_GFX_Library.h. Install the Arduino Library Manager package named 'GFX Library for Arduino', or build with the uno-r4-minima/uno-r4-wifi profile in sketch.yaml to install dependencies."
+#error "Missing Arduino_GFX_Library.h. In Arduino IDE 1.8.x, install Library Manager package: GFX Library for Arduino. Arduino IDE does not install sketch.yaml dependencies automatically; sketch.yaml profiles are for arduino-cli."
 #endif
 
 // Pin mapping for common 2.8" UNO-style parallel TFT shields.
