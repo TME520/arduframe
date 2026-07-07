@@ -4,11 +4,13 @@
 #include <Adafruit_ILI9341.h>
 #include <Adafruit_ImageReader.h>
 
-// Pin mapping for the Adafruit 2.8" TFT Touch Shield for Arduino.
+// Pin mapping for the TFT shield and SD card reader.
+// The SD socket reported as SD_SS uses pin 10 for chip select, while the
+// display chip select must be on a separate pin so both devices can share SPI.
 // If your shield uses different chip-select/data-command pins, change them here.
-#define TFT_CS 10
+#define TFT_CS 8
 #define TFT_DC 9
-#define SD_CS 4
+#define SD_CS 10
 
 const uint16_t FIRST_IMAGE = 1;
 const uint16_t LAST_IMAGE = 999;
@@ -86,7 +88,7 @@ bool initializeSdCard() {
 
   Serial.println(F("SD init failed after all SPI speed attempts"));
   Serial.println(F("Check that the card is fully inserted and formatted as FAT16/FAT32"));
-  Serial.println(F("Check shield SD_CS wiring/jumper; this sketch currently uses pin 4"));
+  Serial.println(F("Check shield SD_CS wiring/jumper; this sketch currently uses pin 10"));
   return false;
 }
 
