@@ -26,13 +26,20 @@ The LCD on this shield is not an SPI display, so `TFT_CS` and `TFT_DC` are not c
 
 ## Arduino libraries
 
-Install these libraries with the Arduino IDE Library Manager:
+Install these libraries with **Sketch > Include Library > Manage Libraries...** in the Arduino IDE:
 
 - `Adafruit GFX Library`
 - `GFX Library for Arduino`
 - `SdFat - Adafruit Fork`
 
-If compilation stops with `Arduino_GFX_Library.h: No such file or directory`, the `GFX Library for Arduino` package is missing from your Arduino libraries. Install that exact package name from Library Manager, then compile again.
+Arduino IDE 1.8.x does **not** read `sketch.yaml` and will not install those dependencies automatically. If compilation stops with `Arduino_GFX_Library.h: No such file or directory` or the sketch's `Missing Arduino_GFX_Library.h` error, install the exact Library Manager package named `GFX Library for Arduino`, then compile again.
+
+If you already installed it and the same error remains, verify that the IDE is using the same sketchbook location where the library was installed:
+
+1. Open **File > Preferences**.
+2. Check **Sketchbook location**.
+3. Confirm that the library folder exists under that location's `libraries` directory.
+4. Restart the Arduino IDE and compile again.
 
 The sketch also includes `sketch.yaml` build profiles for Arduino CLI users. These profiles record the UNO R4 board package and the required libraries, so dependencies can be installed and reused with a profile-based build:
 
