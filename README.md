@@ -4,7 +4,7 @@ A digital photo frame for an Arduino UNO R4 and a 2.8" Arduino TFT touch shield 
 
 ## Hardware
 
-This sketch targets an Arduino-compatible 2.8" UNO-style parallel TFT touch shield with an SD card reader. The LCD is driven with the `MCUFRIEND_kbv` library using the shield's fixed 8-bit parallel pin mapping:
+This sketch targets an Arduino-compatible 2.8" UNO-style parallel TFT touch shield with an SD card reader. The LCD is driven with `GFX Library for Arduino` (`Arduino_GFX_Library`) using the shield's fixed 8-bit parallel pin mapping. This avoids the `MCU unsupported` compile error from `MCUFRIEND_kbv` on Arduino UNO R4 boards:
 
 - `LCD_RST`: A4
 - `LCD_CS`: A3
@@ -22,14 +22,14 @@ This sketch targets an Arduino-compatible 2.8" UNO-style parallel TFT touch shie
 - SD chip select / `SD_SS`: pin 10
 - SD SPI data/clock: pins 11, 12, and 13
 
-The LCD on this shield is not an SPI display, so `TFT_CS` and `TFT_DC` are not configurable sketch constants. The SD card still uses SPI and must use the `SD_CS` value near the top of `arduframe.ino`.
+The LCD on this shield is not an SPI display, so `TFT_CS` and `TFT_DC` are not configurable sketch constants. The sketch uses `Arduino_UNOPAR8`, whose UNO-shield control/data pins are fixed by the library. The SD card still uses SPI and must use the `SD_CS` value near the top of `arduframe.ino`.
 
 ## Arduino libraries
 
 Install these libraries with the Arduino IDE Library Manager:
 
 - `Adafruit GFX Library`
-- `MCUFRIEND_kbv`
+- `GFX Library for Arduino`
 - `SdFat - Adafruit Fork`
 
 The sketch also uses the standard Arduino `SPI` library. BMP files are decoded directly from `SdFat`, so the Adafruit ImageReader library is not required.
@@ -55,7 +55,7 @@ slideshow002.bmp
 slideshow999.bmp
 ```
 
-Use uncompressed 24-bit BMP images sized to the TFT resolution, usually 320x240 pixels when the sketch uses `tft.setRotation(1)`.
+Use uncompressed 24-bit BMP images sized to the TFT resolution, usually 320x240 pixels because the sketch configures display rotation `1` in the `Arduino_ILI9341` constructor.
 
 ## Behavior
 

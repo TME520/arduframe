@@ -1,11 +1,10 @@
 #include <SPI.h>
 #include <SdFat.h>
-#include <Adafruit_GFX.h>
-#include <MCUFRIEND_kbv.h>
+#include <Arduino_GFX_Library.h>
 
 // Pin mapping for common 2.8" UNO-style parallel TFT shields.
 // These shields do not use SPI for the LCD; the control/data pins are fixed
-// by the shield wiring and the MCUFRIEND_kbv library drives them directly:
+// by the shield wiring and the Arduino_GFX Arduino_UNOPAR8 bus drives them directly:
 //   LCD_RST=A4, LCD_CS=A3, LCD_RS/LCD_CD=A2, LCD_WR=A1, LCD_RD=A0
 //   LCD_D0=8, LCD_D1=9, LCD_D2=2, LCD_D3=3, LCD_D4=4, LCD_D5=5, LCD_D6=6, LCD_D7=7
 #define SD_CS 10
@@ -18,7 +17,8 @@ const unsigned long SERIAL_BAUD = 115200UL;
 const uint8_t SD_INIT_SPEEDS_MHZ[] = {10, 4, 1};
 const uint16_t BMP_READ_BUFFER_PIXELS = 40;
 
-MCUFRIEND_kbv tft;
+Arduino_DataBus *bus = new Arduino_UNOPAR8();
+Arduino_GFX *tft = new Arduino_ILI9341(bus, A4 /* RST */, 1 /* rotation */, false /* IPS */);
 SdFat SD;
 
 uint16_t currentImage = FIRST_IMAGE;
@@ -48,22 +48,22 @@ void logMessage(const char *message) {
 }
 
 void drawStatusMessage() {
-  tft.fillScreen(0x0000);
-  tft.setCursor(8, 8);
-  tft.setTextColor(0xFFFF);
-  tft.setTextSize(2);
+  tft->fillScreen(0x0000);
+  tft->setCursor(8, 8);
+  tft->setTextColor(0xFFFF);
+  tft->setTextSize(2);
 }
 
 void showStatus(const __FlashStringHelper *message) {
   logMessage(message);
   drawStatusMessage();
-  tft.print(message);
+  tft->print(message);
 }
 
 void showStatus(const char *message) {
   logMessage(message);
   drawStatusMessage();
-  tft.print(message);
+  tft->print(message);
 }
 
 void buildImageName(uint16_t imageNumber, char *buffer, size_t bufferSize) {
@@ -142,22 +142,21 @@ bool drawBmp(const char *filename, int16_t x, int16_t y) {
 
   int16_t drawWidth = bmpWidth;
   int16_t drawHeight = bmpHeight;
-  if ((x >= tft.width()) || (y >= tft.height())) {
+  if ((x >= tft->width()) || (y >= tft->height())) {
     bmpFile.close();
     return true;
   }
-  if ((x + drawWidth - 1) >= tft.width()) {
-    drawWidth = tft.width() - x;
+  if ((x + drawWidth - 1) >= tft->width()) {
+    drawWidth = tft->width() - x;
   }
-  if ((y + drawHeight - 1) >= tft.height()) {
-    drawHeight = tft.height() - y;
+  if ((y + drawHeight - 1) >= tft->height()) {
+    drawHeight = tft->height() - y;
   }
 
   uint32_t rowSize = ((uint32_t)bmpWidth * 3 + 3) & ~3;
   uint8_t sdbuffer[3 * BMP_READ_BUFFER_PIXELS];
   uint16_t lcdbuffer[BMP_READ_BUFFER_PIXELS];
 
-  tft.setAddrWindow(x, y, x + drawWidth - 1, y + drawHeight - 1);
   for (int16_t row = 0; row < drawHeight; row++) {
     uint32_t rowPosition = imageOffset + (flip ? (bmpHeight - 1 - row) : row) * rowSize;
     if (!bmpFile.seekSet(rowPosition)) {
@@ -181,10 +180,11 @@ bool drawBmp(const char *filename, int16_t x, int16_t y) {
         uint8_t b = *src++;
         uint8_t g = *src++;
         uint8_t r = *src++;
-        lcdbuffer[i] = tft.color565(r, g, b);
+        lcdbuffer[i] = tft->color565(r, g, b);
       }
 
-      tft.pushColors(lcdbuffer, pixelsToRead, row == 0 && remaining == drawWidth);
+      int16_t chunkX = x + drawWidth - remaining;
+      tft->draw16bitRGBBitmap(chunkX, y + row, lcdbuffer, pixelsToRead, 1);
       remaining -= pixelsToRead;
     }
   }
@@ -206,13 +206,13 @@ void displayImage(uint16_t imageNumber) {
     Serial.print(F("Image load failed for "));
     Serial.println(filename);
 
-    tft.fillScreen(0x0000);
-    tft.setCursor(8, 8);
-    tft.setTextColor(0xF800);
-    tft.setTextSize(2);
-    tft.print(F("Could not load:"));
-    tft.setCursor(8, 34);
-    tft.print(filename);
+    tft->fillScreen(0x0000);
+    tft->setCursor(8, 8);
+    tft->setTextColor(0xF800);
+    tft->setTextSize(2);
+    tft->print(F("Could not load:"));
+    tft->setCursor(8, 34);
+    tft->print(filename);
   } else {
     Serial.print(F("Image displayed successfully: "));
     Serial.println(filename);
@@ -235,16 +235,14 @@ void setup() {
   pinMode(SD_CS, OUTPUT);
   digitalWrite(SD_CS, HIGH);
 
-  Serial.println(F("Initializing TFT..."));
-  uint16_t displayId = tft.readID();
-  Serial.print(F("TFT ID=0x"));
-  Serial.println(displayId, HEX);
-  if (displayId == 0xD3D3 || displayId == 0xFFFF || displayId == 0x0000) {
-    Serial.println(F("Using ILI9341 fallback ID 0x9341"));
-    displayId = 0x9341;
+  Serial.println(F("Initializing ILI9341 TFT over Arduino_UNOPAR8..."));
+  if (!tft->begin()) {
+    Serial.println(F("TFT begin failed"));
+    Serial.flush();
+    while (true) {
+      delay(1000);
+    }
   }
-  tft.begin(displayId);
-  tft.setRotation(1);
   Serial.println(F("TFT initialized with rotation 1"));
   showStatus(F("Starting SD..."));
 
