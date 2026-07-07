@@ -19,9 +19,9 @@ Install these libraries with the Arduino IDE Library Manager:
 - `Adafruit GFX Library`
 - `Adafruit ILI9341`
 - `Adafruit ImageReader Library`
-- `SdFat - Adafruit Fork` if requested by the ImageReader library
+- `SdFat - Adafruit Fork`
 
-The sketch also uses the standard Arduino `SPI` and `SD` libraries.
+The sketch also uses the standard Arduino `SPI` library. The Adafruit ImageReader library requires the SdFat API, so the sketch intentionally uses `SdFat` instead of Arduino's built-in `SD` library.
 
 ## SD card image layout
 
