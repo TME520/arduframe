@@ -1,5 +1,5 @@
 #include <SPI.h>
-#include <SD.h>
+#include <SdFat.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 #include <Adafruit_ImageReader.h>
@@ -15,6 +15,7 @@ const uint16_t LAST_IMAGE = 999;
 const unsigned long SLIDE_DURATION_MS = 10000UL;
 
 Adafruit_ILI9341 tft(TFT_CS, TFT_DC);
+SdFat SD;
 Adafruit_ImageReader reader(SD);
 
 uint16_t currentImage = FIRST_IMAGE;
@@ -52,7 +53,7 @@ void setup() {
   tft.setRotation(1);
   showStatus(F("Starting SD..."));
 
-  if (!SD.begin(SD_CS)) {
+  if (!SD.begin(SD_CS, SD_SCK_MHZ(10))) {
     showStatus(F("SD init failed"));
     while (true) {
       delay(1000);
