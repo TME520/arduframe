@@ -23,14 +23,14 @@ SdFat SD;
 
 uint16_t currentImage = FIRST_IMAGE;
 
-uint16_t read16(FsFile &file) {
+uint16_t read16(File32 &file) {
   uint16_t value;
   value = (uint8_t)file.read();
   value |= (uint16_t)file.read() << 8;
   return value;
 }
 
-uint32_t read32(FsFile &file) {
+uint32_t read32(File32 &file) {
   uint32_t value;
   value = (uint8_t)file.read();
   value |= (uint32_t)file.read() << 8;
@@ -101,7 +101,7 @@ bool initializeSdCard() {
 }
 
 bool drawBmp(const char *filename, int16_t x, int16_t y) {
-  FsFile bmpFile = SD.open(filename, O_RDONLY);
+  File32 bmpFile = SD.open(filename, O_RDONLY);
   if (!bmpFile) {
     Serial.println(F("BMP open failed"));
     return false;
