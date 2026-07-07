@@ -38,6 +38,8 @@ For best results, use uncompressed BMP images sized to the TFT resolution, usual
 
 ## Behavior
 
-On startup, the Arduino initializes the TFT and SD card. It displays `slideshow001.bmp` for 10 seconds, then `slideshow002.bmp` for 10 seconds, continuing through `slideshow999.bmp`. After `slideshow999.bmp` has been displayed for 10 seconds, the slideshow loops back to `slideshow001.bmp`.
+On startup, the Arduino initializes the serial port, TFT, and SD card. Open the Arduino IDE Serial Monitor at `115200` baud to see startup, TFT initialization, SD initialization, image load attempts, image load failures, and slideshow wraparound messages.
+
+It displays `slideshow001.bmp` for 10 seconds, then `slideshow002.bmp` for 10 seconds, continuing through `slideshow999.bmp`. After `slideshow999.bmp` has been displayed for 10 seconds, the slideshow loops back to `slideshow001.bmp`.
 
 If an image cannot be loaded, the sketch shows the missing filename for 10 seconds and then continues to the next slide.
