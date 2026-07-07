@@ -4,13 +4,14 @@ A digital photo frame for an Arduino UNO R4 and a 2.8" Arduino TFT touch shield 
 
 ## Hardware
 
-This sketch targets an Arduino-compatible 2.8" TFT touch shield using an ILI9341 display controller and an SD card reader. The default pin mapping matches the Adafruit 2.8" TFT Touch Shield for Arduino:
+This sketch targets an Arduino-compatible 2.8" TFT touch shield using an ILI9341 display controller and an SD card reader. The default pin mapping targets shields whose SD socket is labeled `SD_SS 10`:
 
-- TFT chip select: pin 10
+- TFT chip select: pin 8
 - TFT data/command: pin 9
-- SD chip select: pin 4
+- SD chip select / `SD_SS`: pin 10
+- SD SPI data/clock: pins 11, 12, and 13
 
-If your shield uses different pins, update `TFT_CS`, `TFT_DC`, and `SD_CS` near the top of `arduframe.ino`.
+If your shield uses different pins, update `TFT_CS`, `TFT_DC`, and `SD_CS` near the top of `arduframe.ino`. The TFT and SD chip-select pins must be different so the sketch can deselect one SPI device before talking to the other.
 
 ## Arduino libraries
 
@@ -31,7 +32,7 @@ If startup still stops at `SD init failed`, check the Serial Monitor for the att
 
 - The SD card is fully inserted.
 - The SD card is formatted as FAT16 or FAT32.
-- Your shield's SD chip-select pin matches `SD_CS` in `arduframe.ino`; the default is pin 4.
+- Your shield's SD chip-select pin matches `SD_CS` in `arduframe.ino`; the default is pin 10 for sockets labeled `SD_SS 10`.
 
 ## SD card image layout
 
