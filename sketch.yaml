@@ -8,6 +8,7 @@ profiles:
       - Adafruit GFX Library
       - GFX Library for Arduino
       - SdFat - Adafruit Fork
+      - MCUFRIEND_kbv
   uno-r4-wifi:
     notes: Arduino UNO R4 WiFi with an UNO-style 8-bit parallel TFT shield and SD card.
     fqbn: arduino:renesas_uno:unor4wifi
@@ -17,6 +18,7 @@ profiles:
       - Adafruit GFX Library
       - GFX Library for Arduino
       - SdFat - Adafruit Fork
+      - MCUFRIEND_kbv
 
   m5stack-cardputer:
     notes: M5Stack Cardputer with built-in ST7789 display and microSD slot.

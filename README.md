@@ -41,6 +41,13 @@ If the controller is still unknown, the sketch also supports a compile-and-uploa
 #define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_HX8357   // alternate 320x480 controller
 ```
 
+
+### MCUFRIEND_kbv fallback probe
+
+If the main sketch reaches the SD/BMP log messages but the TFT stays white through every visible controller trial, try the standalone MCUFRIEND probe in `extras/mcufriend_probe/mcufriend_probe.ino`. Upload it with a classic AVR UNO/Mega-compatible board and the `MCUFRIEND_kbv` library installed. The probe prints `tft.readID()` and then forces common controller IDs while drawing a large red/green/blue test pattern for each ID. The first forced ID that changes the LCD from white is the controller family to use for further bring-up.
+
+`MCUFRIEND_kbv` is useful for identifying many inexpensive UNO-style parallel shields, but it does not support every modern Arduino core. If it will not compile for an Arduino UNO R4, temporarily move the shield to an AVR UNO/Mega for this identification test, then bring the discovered controller/pin information back to the main sketch.
+
 For hands-on testing, set `ARDUFRAME_TFT_DIAGNOSTIC_TRIAL_SECONDS` above `0` so the color pattern remains visible before the sketch moves on to SD-card and slideshow work:
 
 ```cpp
