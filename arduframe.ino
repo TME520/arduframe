@@ -40,11 +40,12 @@ const uint16_t LAST_IMAGE = 999;
 const unsigned long SLIDE_DURATION_MS = 10000UL;
 const unsigned long SERIAL_WAIT_MS = 3000UL;
 const unsigned long SERIAL_BAUD = 115200UL;
-const uint8_t SD_INIT_SPEEDS_MHZ[] = {10, 4, 1};
+const uint8_t SD_INIT_SPEEDS_MHZ[] = {4, 1, 10};
 const uint16_t BMP_READ_BUFFER_PIXELS = 40;
 const uint16_t BMP_SUPPORTED_DEPTH_24 = 24;
 const uint16_t BMP_SUPPORTED_DEPTH_32 = 32;
 const uint16_t TFT_DIAGNOSTIC_COLOR_DELAY_MS = 450;
+const uint16_t BMP_PROGRESS_ROWS = 40;
 
 #if defined(ARDUINO_ARCH_AVR)
 typedef const __FlashStringHelper *FlashString;
@@ -405,11 +406,14 @@ bool initializeSdCard() {
 }
 
 bool drawBmp(const char *filename, int16_t x, int16_t y) {
+  Serial.println(F("Opening BMP file..."));
   File32 bmpFile = SD.open(filename, O_RDONLY);
   if (!bmpFile) {
     Serial.println(F("BMP open failed"));
     return false;
   }
+
+  Serial.println(F("BMP file opened; reading header"));
 
   if (read16(bmpFile) != 0x4D42) {
     Serial.println(F("BMP signature mismatch"));
@@ -449,6 +453,15 @@ bool drawBmp(const char *filename, int16_t x, int16_t y) {
     return false;
   }
 
+  Serial.print(F("BMP header OK: width="));
+  Serial.print(bmpWidth);
+  Serial.print(F(" height="));
+  Serial.print(bmpHeight);
+  Serial.print(F(" depth="));
+  Serial.print(bitDepth);
+  Serial.print(F(" imageOffset="));
+  Serial.println(imageOffset);
+
   bool flip = true;
   if (bmpHeight < 0) {
     bmpHeight = -bmpHeight;
@@ -470,10 +483,23 @@ bool drawBmp(const char *filename, int16_t x, int16_t y) {
 
   uint8_t bytesPerPixel = bitDepth / 8;
   uint32_t rowSize = ((uint32_t)bmpWidth * bytesPerPixel + 3) & ~3;
+  Serial.print(F("Drawing BMP clipped to "));
+  Serial.print(drawWidth);
+  Serial.print('x');
+  Serial.print(drawHeight);
+  Serial.print(F(" rowSize="));
+  Serial.println(rowSize);
   uint8_t sdbuffer[4 * BMP_READ_BUFFER_PIXELS];
   uint16_t lcdbuffer[BMP_READ_BUFFER_PIXELS];
 
   for (int16_t row = 0; row < drawHeight; row++) {
+    if ((row % BMP_PROGRESS_ROWS) == 0) {
+      Serial.print(F("BMP draw row "));
+      Serial.print(row);
+      Serial.print('/');
+      Serial.println(drawHeight);
+    }
+
     uint32_t rowPosition = imageOffset + (flip ? (bmpHeight - 1 - row) : row) * rowSize;
     if (!bmpFile.seekSet(rowPosition)) {
       Serial.println(F("BMP row seek failed"));
@@ -509,6 +535,7 @@ bool drawBmp(const char *filename, int16_t x, int16_t y) {
   }
 
   bmpFile.close();
+  Serial.println(F("BMP draw complete"));
   return true;
 }
 
