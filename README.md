@@ -88,6 +88,17 @@ The sketch also uses the standard Arduino `SPI` library. BMP files are decoded d
 
 During startup, the sketch retries SD startup at 10 MHz, 4 MHz, and 1 MHz. This helps with SD cards that are unreliable at the first clock speed.
 
+## White-screen TFT identification
+
+If the screen remains white through the startup color sequence, first identify the exact shield before changing SD-card or BMP settings. Power the Arduino off, remove the shield if needed, and record:
+
+- Any model text printed on the shield PCB, such as `2.8 TFT LCD Shield`, `mcufriend.com`, or a version number.
+- Any text on the LCD flex cable, especially controller-like names such as `ILI9341`, `ILI9325`, `ILI9328`, `ILI9486`, `HX8347`, `ST7781`, or `R61505`.
+- Any pin labels on the shield edge, especially whether they match `RD=A0`, `WR=A1`, `RS=A2`, `CS=A3`, `RST=A4`, and `SD_SS=10`.
+- The full Serial Monitor startup log, including the physical-ID checklist and read-register sweep.
+
+The sketch prints this same checklist at startup on UNO-style builds so the Serial Monitor log captures exactly what markings are needed when diagnosing a white screen.
+
 If startup still stops at `SD init failed`, check the Serial Monitor for the attempted speeds, then verify that:
 
 - The SD card is fully inserted.
