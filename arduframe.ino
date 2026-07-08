@@ -23,15 +23,15 @@
 #else
 #define LCD_RST A4
 #define SD_CS 10
-// Many brandless AliExpress UNO-style shields with this exact pinout are
-// 3.5-inch 320x480 ILI9486 panels.  A wrong controller init commonly leaves
-// the backlight on but the LCD glass white, while Serial still reports that
-// images were read and drawn.  Set this to ARDUFRAME_TFT_ILI9341 for 2.8-inch
-// 240x320 shields.
+// Brandless AliExpress shields marked "2.8 TFT LCD Shield" with this pinout
+// are normally 240x320 ILI9341-style panels. A wrong controller init commonly
+// leaves the backlight on but the LCD glass white, while Serial still reports
+// that images were read and drawn. Set this to ARDUFRAME_TFT_ILI9486 only for
+// 3.5-inch 320x480 shields.
 #define ARDUFRAME_TFT_ILI9341 1
 #define ARDUFRAME_TFT_ILI9486 2
 #ifndef ARDUFRAME_TFT_DRIVER
-#define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_ILI9486
+#define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_ILI9341
 #endif
 #endif
 
@@ -82,6 +82,17 @@ void logMessage(const __FlashStringHelper *message) {
 
 void logMessage(const char *message) {
   Serial.println(message);
+}
+
+
+void showTftSelfTestPattern() {
+  Serial.println(F("Drawing TFT self-test color bars"));
+  int16_t barWidth = tft->width() / 4;
+  tft->fillRect(0, 0, barWidth, tft->height(), 0xF800);
+  tft->fillRect(barWidth, 0, barWidth, tft->height(), 0x07E0);
+  tft->fillRect(barWidth * 2, 0, barWidth, tft->height(), 0x001F);
+  tft->fillRect(barWidth * 3, 0, tft->width() - (barWidth * 3), tft->height(), 0xFFFF);
+  delay(1000);
 }
 
 void drawStatusMessage() {
@@ -306,6 +317,7 @@ void setup() {
   Serial.print(tft->width());
   Serial.print(F("x"));
   Serial.println(tft->height());
+  showTftSelfTestPattern();
   showStatus(F("Starting SD..."));
 
   Serial.println(F("Initializing SD card..."));
