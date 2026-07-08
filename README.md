@@ -32,6 +32,10 @@ The default UNO-style display controller is `ILI9341`, because brandless AliExpr
 
 At startup, the sketch draws one second of red/green/blue/white color bars before initializing the SD card. If those bars remain white or invisible, the failure is in the TFT controller/pin initialization rather than BMP decoding or SD reading. The startup log prints the selected controller and drawable size so you can confirm the build, for example `UNO TFT driver: ILI9341 240x320`.
 
+Before the normal graphics-library initialization, UNO-style builds also run a low-level TFT readback probe against the shield's 8-bit parallel bus. The log includes a reset pulse, the expected pin mapping, and a sweep of common display-controller registers such as `0x04`, `0x09`, `0xBF`, `0xD3`, `0xDA`, `0xDB`, `0xDC`, and `0xEF`. When the controller answers, the sketch prints candidate 16-bit IDs and labels for common chips such as `ILI9341`, `ILI9486`, `ILI9325`, `ILI9328`, `HX8357`, `SSD1289`, and related clone IDs. If every read is `00` or `FF`, the LCD read line may be unavailable on that shield, the controller may not support those reads, or the shield may not actually match the UNO control/data pin mapping printed by the sketch.
+
+After initialization, the visible TFT diagnostic is now longer than a single color-bar flash: the sketch fills the whole display black, white, red, green, and blue, then draws red/green/blue/white bars. If the Serial Monitor continues into SD and BMP messages but none of these colors appear, focus on the LCD controller type, reset/control pins, or shield compatibility rather than the SD card or BMP files.
+
 The LCD on this shield is not an SPI display, so `TFT_CS` and `TFT_DC` are not configurable sketch constants. On UNO-style builds the sketch uses `Arduino_UNOPAR8`, whose UNO-shield control/data pins are fixed by the library. The SD card still uses SPI and must use the `SD_CS` value near the top of `arduframe.ino`.
 
 ### M5Stack Cardputer
