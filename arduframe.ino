@@ -42,6 +42,8 @@ const unsigned long SERIAL_WAIT_MS = 3000UL;
 const unsigned long SERIAL_BAUD = 115200UL;
 const uint8_t SD_INIT_SPEEDS_MHZ[] = {10, 4, 1};
 const uint16_t BMP_READ_BUFFER_PIXELS = 40;
+const uint16_t BMP_SUPPORTED_DEPTH_24 = 24;
+const uint16_t BMP_SUPPORTED_DEPTH_32 = 32;
 const uint16_t TFT_DIAGNOSTIC_COLOR_DELAY_MS = 450;
 
 #if defined(ARDUINO_ARCH_AVR)
@@ -430,8 +432,19 @@ bool drawBmp(const char *filename, int16_t x, int16_t y) {
 
   uint16_t bitDepth = read16(bmpFile);
   uint32_t compression = read32(bmpFile);
-  if (headerSize < 40 || bmpWidth <= 0 || bmpHeight == 0 || bitDepth != 24 || compression != 0) {
-    Serial.println(F("BMP must be uncompressed 24-bit format"));
+  if (headerSize < 40 || bmpWidth <= 0 || bmpHeight == 0 || compression != 0 ||
+      (bitDepth != BMP_SUPPORTED_DEPTH_24 && bitDepth != BMP_SUPPORTED_DEPTH_32)) {
+    Serial.print(F("Unsupported BMP: header="));
+    Serial.print(headerSize);
+    Serial.print(F(" width="));
+    Serial.print(bmpWidth);
+    Serial.print(F(" height="));
+    Serial.print(bmpHeight);
+    Serial.print(F(" depth="));
+    Serial.print(bitDepth);
+    Serial.print(F(" compression="));
+    Serial.println(compression);
+    Serial.println(F("BMP must be uncompressed 24-bit or 32-bit format"));
     bmpFile.close();
     return false;
   }
@@ -455,8 +468,9 @@ bool drawBmp(const char *filename, int16_t x, int16_t y) {
     drawHeight = tft->height() - y;
   }
 
-  uint32_t rowSize = ((uint32_t)bmpWidth * 3 + 3) & ~3;
-  uint8_t sdbuffer[3 * BMP_READ_BUFFER_PIXELS];
+  uint8_t bytesPerPixel = bitDepth / 8;
+  uint32_t rowSize = ((uint32_t)bmpWidth * bytesPerPixel + 3) & ~3;
+  uint8_t sdbuffer[4 * BMP_READ_BUFFER_PIXELS];
   uint16_t lcdbuffer[BMP_READ_BUFFER_PIXELS];
 
   for (int16_t row = 0; row < drawHeight; row++) {
@@ -470,7 +484,7 @@ bool drawBmp(const char *filename, int16_t x, int16_t y) {
     int16_t remaining = drawWidth;
     while (remaining > 0) {
       uint16_t pixelsToRead = remaining > BMP_READ_BUFFER_PIXELS ? BMP_READ_BUFFER_PIXELS : remaining;
-      uint16_t bytesToRead = pixelsToRead * 3;
+      uint16_t bytesToRead = pixelsToRead * bytesPerPixel;
       if (bmpFile.read(sdbuffer, bytesToRead) != bytesToRead) {
         Serial.println(F("BMP row read failed"));
         bmpFile.close();
@@ -482,6 +496,9 @@ bool drawBmp(const char *filename, int16_t x, int16_t y) {
         uint8_t b = *src++;
         uint8_t g = *src++;
         uint8_t r = *src++;
+        if (bytesPerPixel == 4) {
+          src++; // Ignore the BMP alpha/reserved byte.
+        }
         lcdbuffer[i] = tft->color565(r, g, b);
       }
 

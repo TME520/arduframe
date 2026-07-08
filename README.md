@@ -105,7 +105,7 @@ slideshow002.bmp
 slideshow999.bmp
 ```
 
-Use uncompressed 24-bit BMP images sized to the TFT resolution: usually 320x240 pixels on a landscape UNO-style ILI9341 2.8-inch shield, 480x320 pixels on a landscape UNO-style ILI9486 3.5-inch shield, or 240x135 pixels on the M5Stack Cardputer built-in ST7789 display. The sketch configures display rotation `1`.
+Use uncompressed 24-bit or 32-bit BMP images sized to the TFT resolution: usually 320x240 pixels on a landscape UNO-style ILI9341 2.8-inch shield, 480x320 pixels on a landscape UNO-style ILI9486 3.5-inch shield, or 240x135 pixels on the M5Stack Cardputer built-in ST7789 display. The sketch configures display rotation `1`.
 
 ## Behavior
 
