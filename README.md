@@ -1,10 +1,12 @@
 # arduframe
 
-A digital photo frame for an Arduino UNO R4 and a 2.8" Arduino TFT touch shield with an SD card reader.
+A digital photo frame for an Arduino UNO R4 with a 2.8" Arduino TFT touch shield, or an M5Stack Cardputer using its built-in display and microSD slot.
 
 ## Hardware
 
-This sketch targets an Arduino-compatible 2.8" UNO-style parallel TFT touch shield with an SD card reader. The LCD is driven with `GFX Library for Arduino` (`Arduino_GFX_Library`) using the shield's fixed 8-bit parallel pin mapping. This avoids the `MCU unsupported` compile error from `MCUFRIEND_kbv` on Arduino UNO R4 boards:
+### Arduino UNO R4 with UNO-style TFT shield
+
+This sketch supports an Arduino-compatible 2.8" UNO-style parallel TFT touch shield with an SD card reader. The LCD is driven with `GFX Library for Arduino` (`Arduino_GFX_Library`) using the shield's fixed 8-bit parallel pin mapping. This avoids the `MCU unsupported` compile error from `MCUFRIEND_kbv` on Arduino UNO R4 boards:
 
 - `LCD_RST`: A4
 - `LCD_CS`: A3
@@ -22,7 +24,22 @@ This sketch targets an Arduino-compatible 2.8" UNO-style parallel TFT touch shie
 - SD chip select / `SD_SS`: pin 10
 - SD SPI data/clock: pins 11, 12, and 13
 
-The LCD on this shield is not an SPI display, so `TFT_CS` and `TFT_DC` are not configurable sketch constants. The sketch uses `Arduino_UNOPAR8`, whose UNO-shield control/data pins are fixed by the library. The SD card still uses SPI and must use the `SD_CS` value near the top of `arduframe.ino`.
+The LCD on this shield is not an SPI display, so `TFT_CS` and `TFT_DC` are not configurable sketch constants. On UNO-style builds the sketch uses `Arduino_UNOPAR8`, whose UNO-shield control/data pins are fixed by the library. The SD card still uses SPI and must use the `SD_CS` value near the top of `arduframe.ino`.
+
+### M5Stack Cardputer
+
+When compiled for `ARDUINO_M5STACK_CARDPUTER`, the sketch uses the Cardputer built-in SPI ST7789 display instead of `Arduino_UNOPAR8`, which is not available for ESP32-S3 boards. The Cardputer pin mapping is:
+
+- LCD reset: GPIO 33
+- LCD data/command: GPIO 34
+- LCD MOSI: GPIO 35
+- LCD SCK: GPIO 36
+- LCD chip select: GPIO 37
+- LCD backlight: GPIO 38
+- microSD chip select: GPIO 12
+- microSD MOSI: GPIO 14
+- microSD MISO: GPIO 39
+- microSD SCK: GPIO 40
 
 ## Arduino libraries
 
@@ -49,6 +66,8 @@ arduino-cli core update-index
 arduino-cli compile --profile uno-r4-minima .
 # or, for an UNO R4 WiFi:
 arduino-cli compile --profile uno-r4-wifi .
+# or, for an M5Stack Cardputer:
+arduino-cli compile --profile m5stack-cardputer .
 ```
 
 The sketch also uses the standard Arduino `SPI` library. BMP files are decoded directly from `SdFat`, so the Adafruit ImageReader library is not required.
@@ -74,7 +93,7 @@ slideshow002.bmp
 slideshow999.bmp
 ```
 
-Use uncompressed 24-bit BMP images sized to the TFT resolution, usually 320x240 pixels because the sketch configures display rotation `1` in the `Arduino_ILI9341` constructor.
+Use uncompressed 24-bit BMP images sized to the TFT resolution, usually 320x240 pixels on the UNO-style ILI9341 shield, or 240x135 pixels on the M5Stack Cardputer built-in ST7789 display. The sketch configures display rotation `1`.
 
 ## Behavior
 
