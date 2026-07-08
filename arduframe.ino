@@ -261,6 +261,15 @@ void printLikelyController(uint16_t id) {
   }
 }
 
+void printUnoShieldIdentificationChecklist() {
+  Serial.println(F("TFT physical ID checklist:"));
+  Serial.println(F("  1) Remove shield/power before inspecting the back and LCD flex cable."));
+  Serial.println(F("  2) Record PCB text, LCD flex text, and any controller IC marking."));
+  Serial.println(F("  3) Look for IDs like ILI9341, ILI9325, ILI9328, ILI9486, HX8347, ST7781, or R61505."));
+  Serial.println(F("  4) Confirm shield pin labels match RD=A0 WR=A1 RS=A2 CS=A3 RST=A4 and SD_SS=10."));
+  Serial.println(F("  5) If the startup color test stays white, share those markings with this serial log."));
+}
+
 void probeUnoTftReadRegisters() {
   Serial.println(F("TFT hardware probe: UNO 8-bit read-register sweep"));
   Serial.println(F("Expected shield pins: RD=A0 WR=A1 RS=A2 CS=A3 RST=A4 D0=8 D1=9 D2=2 D3=3 D4=4 D5=5 D6=6 D7=7"));
@@ -588,6 +597,7 @@ void setup() {
 #elif ARDUFRAME_TFT_DRIVER == ARDUFRAME_TFT_ILI9486
   Serial.println(F("ILI9486 320x480"));
 #endif
+  printUnoShieldIdentificationChecklist();
 #endif
 
   pinMode(SD_CS, OUTPUT);
