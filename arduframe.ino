@@ -76,7 +76,7 @@ Arduino_GFX *tft = new Arduino_ILI9486(bus, LCD_RST /* RST */, 1 /* rotation */,
 #elif ARDUFRAME_TFT_DRIVER == ARDUFRAME_TFT_ILI9488
 Arduino_GFX *tft = new Arduino_ILI9488(bus, LCD_RST /* RST */, 1 /* rotation */, false /* IPS */);
 #elif ARDUFRAME_TFT_DRIVER == ARDUFRAME_TFT_HX8357
-Arduino_GFX *tft = new Arduino_HX8357(bus, LCD_RST /* RST */, 1 /* rotation */, false /* IPS */);
+Arduino_GFX *tft = new Arduino_HX8357B(bus, LCD_RST /* RST */, 1 /* rotation */, false /* IPS */);
 #else
 #error "Unsupported ARDUFRAME_TFT_DRIVER; use ARDUFRAME_TFT_ILI9341, ARDUFRAME_TFT_ILI9486, ARDUFRAME_TFT_ILI9488, or ARDUFRAME_TFT_HX8357"
 #endif
@@ -471,7 +471,7 @@ void runUnoTftControllerTrials() {
   }
   {
     Arduino_UNOPAR8 trialBus;
-    Arduino_HX8357 trialTft(&trialBus, LCD_RST /* RST */, 1 /* rotation */, false /* IPS */);
+    Arduino_HX8357B trialTft(&trialBus, LCD_RST /* RST */, 1 /* rotation */, false /* IPS */);
     drawDriverTrialPattern(&trialTft, F("HX8357"), 0xFFFF);
   }
   Serial.println(F("TFT controller trial set complete; continuing with the selected compile-time driver."));
