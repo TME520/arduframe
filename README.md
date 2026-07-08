@@ -24,13 +24,13 @@ This sketch supports Arduino-compatible UNO-style parallel TFT touch shields wit
 - SD chip select / `SD_SS`: pin 10
 - SD SPI data/clock: pins 11, 12, and 13
 
-The default UNO-style display controller is `ILI9341`, because boards marked `2.8 TFT LCD Shield` with LCD glass markings like `QR4 5265S01 ... TP28017` are commonly 240x320 ILI9341-class shields. If Serial says images are displayed successfully but the screen stays white, the LCD backlight is powered but the controller probably was initialized with the wrong driver. For a 3.5-inch 320x480 ILI9486 shield, change the default near the top of `arduframe.ino` to:
+The default UNO-style display controller is now `ILI9486`, because many brandless AliExpress shields with this exact pinout are 3.5-inch 320x480 ILI9486 panels. If Serial says images are displayed successfully but the screen stays white, the LCD backlight is powered but the controller probably was initialized with the wrong driver. For a 2.8-inch 240x320 ILI9341 shield, change the default near the top of `arduframe.ino` to:
 
 ```cpp
-#define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_ILI9486
+#define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_ILI9341
 ```
 
-The startup log prints the selected controller and drawable size so you can confirm the build, for example `UNO TFT driver: ILI9341 240x320`.
+The startup log prints the selected controller and drawable size so you can confirm the build, for example `UNO TFT driver: ILI9486 320x480`.
 
 The LCD on this shield is not an SPI display, so `TFT_CS` and `TFT_DC` are not configurable sketch constants. On UNO-style builds the sketch uses `Arduino_UNOPAR8`, whose UNO-shield control/data pins are fixed by the library. The SD card still uses SPI and must use the `SD_CS` value near the top of `arduframe.ino`.
 

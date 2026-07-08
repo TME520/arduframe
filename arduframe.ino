@@ -23,15 +23,15 @@
 #else
 #define LCD_RST A4
 #define SD_CS 10
-// QR4 5265S01 / TP28017 panels on boards marked "2.8 TFT LCD Shield" are
-// typically 240x320 ILI9341-class UNO shields.  A wrong controller init
-// commonly leaves the backlight on but the LCD glass white, while Serial still
-// reports that images were read and drawn.  Set this to ARDUFRAME_TFT_ILI9486
-// only for 3.5-inch 320x480 shields.
+// Many brandless AliExpress UNO-style shields with this exact pinout are
+// 3.5-inch 320x480 ILI9486 panels.  A wrong controller init commonly leaves
+// the backlight on but the LCD glass white, while Serial still reports that
+// images were read and drawn.  Set this to ARDUFRAME_TFT_ILI9341 for 2.8-inch
+// 240x320 shields.
 #define ARDUFRAME_TFT_ILI9341 1
 #define ARDUFRAME_TFT_ILI9486 2
 #ifndef ARDUFRAME_TFT_DRIVER
-#define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_ILI9341
+#define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_ILI9486
 #endif
 #endif
 
