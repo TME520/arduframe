@@ -17,3 +17,13 @@ profiles:
       - Adafruit GFX Library
       - GFX Library for Arduino
       - SdFat - Adafruit Fork
+
+  m5stack-cardputer:
+    notes: M5Stack Cardputer with built-in ST7789 display and microSD slot.
+    fqbn: m5stack:esp32:m5stack_cardputer
+    platforms:
+      - platform: m5stack:esp32
+    libraries:
+      - Adafruit GFX Library
+      - GFX Library for Arduino
+      - SdFat - Adafruit Fork

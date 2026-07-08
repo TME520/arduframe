@@ -2,12 +2,28 @@
 #include <SdFat.h>
 #include <Arduino_GFX_Library.h>
 
-// Pin mapping for common 2.8" UNO-style parallel TFT shields.
+// Default pin mapping for common 2.8" UNO-style parallel TFT shields.
 // These shields do not use SPI for the LCD; the control/data pins are fixed
 // by the shield wiring and the Arduino_GFX Arduino_UNOPAR8 bus drives them directly:
 //   LCD_RST=A4, LCD_CS=A3, LCD_RS/LCD_CD=A2, LCD_WR=A1, LCD_RD=A0
 //   LCD_D0=8, LCD_D1=9, LCD_D2=2, LCD_D3=3, LCD_D4=4, LCD_D5=5, LCD_D6=6, LCD_D7=7
+//
+// M5Stack Cardputer uses its built-in SPI ST7789 display and separate uSD SPI pins.
+#if defined(ARDUINO_M5STACK_CARDPUTER)
+#define LCD_RST 33
+#define LCD_DC 34
+#define LCD_MOSI 35
+#define LCD_SCK 36
+#define LCD_CS 37
+#define LCD_BL 38
+#define SD_CS 12
+#define SD_MOSI 14
+#define SD_MISO 39
+#define SD_SCK 40
+#else
+#define LCD_RST A4
 #define SD_CS 10
+#endif
 
 const uint16_t FIRST_IMAGE = 1;
 const uint16_t LAST_IMAGE = 999;
@@ -17,8 +33,13 @@ const unsigned long SERIAL_BAUD = 115200UL;
 const uint8_t SD_INIT_SPEEDS_MHZ[] = {10, 4, 1};
 const uint16_t BMP_READ_BUFFER_PIXELS = 40;
 
+#if defined(ARDUINO_M5STACK_CARDPUTER)
+Arduino_DataBus *bus = new Arduino_ESP32SPI(LCD_DC, LCD_CS, LCD_SCK, LCD_MOSI);
+Arduino_GFX *tft = new Arduino_ST7789(bus, LCD_RST, 1 /* rotation */, true /* IPS */, 135, 240, 52, 40);
+#else
 Arduino_DataBus *bus = new Arduino_UNOPAR8();
-Arduino_GFX *tft = new Arduino_ILI9341(bus, A4 /* RST */, 1 /* rotation */, false /* IPS */);
+Arduino_GFX *tft = new Arduino_ILI9341(bus, LCD_RST /* RST */, 1 /* rotation */, false /* IPS */);
+#endif
 SdFat SD;
 
 uint16_t currentImage = FIRST_IMAGE;
@@ -73,6 +94,9 @@ void buildImageName(uint16_t imageNumber, char *buffer, size_t bufferSize) {
 bool initializeSdCard() {
   pinMode(SD_CS, OUTPUT);
   digitalWrite(SD_CS, HIGH);
+#if defined(ARDUINO_M5STACK_CARDPUTER)
+  SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
+#endif
 
   for (uint8_t i = 0; i < sizeof(SD_INIT_SPEEDS_MHZ); i++) {
     uint8_t speedMhz = SD_INIT_SPEEDS_MHZ[i];
@@ -229,13 +253,23 @@ void setup() {
   Serial.println(F("arduframe starting"));
   Serial.print(F("Serial baud: "));
   Serial.println(SERIAL_BAUD);
+#if defined(ARDUINO_M5STACK_CARDPUTER)
+  Serial.print(F("LCD interface: M5Stack Cardputer built-in ST7789 SPI, SD_CS="));
+#else
   Serial.print(F("LCD interface: UNO-style 8-bit parallel shield, SD_CS="));
+#endif
   Serial.println(SD_CS);
 
   pinMode(SD_CS, OUTPUT);
   digitalWrite(SD_CS, HIGH);
 
+#if defined(ARDUINO_M5STACK_CARDPUTER)
+  pinMode(LCD_BL, OUTPUT);
+  digitalWrite(LCD_BL, HIGH);
+  Serial.println(F("Initializing Cardputer ST7789 TFT over SPI..."));
+#else
   Serial.println(F("Initializing ILI9341 TFT over Arduino_UNOPAR8..."));
+#endif
   if (!tft->begin()) {
     Serial.println(F("TFT begin failed"));
     Serial.flush();
