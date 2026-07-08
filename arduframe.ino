@@ -42,6 +42,7 @@ const unsigned long SERIAL_WAIT_MS = 3000UL;
 const unsigned long SERIAL_BAUD = 115200UL;
 const uint8_t SD_INIT_SPEEDS_MHZ[] = {10, 4, 1};
 const uint16_t BMP_READ_BUFFER_PIXELS = 40;
+const uint16_t TFT_DIAGNOSTIC_COLOR_DELAY_MS = 450;
 
 #if defined(ARDUINO_M5STACK_CARDPUTER)
 Arduino_DataBus *bus = new Arduino_ESP32SPI(LCD_DC, LCD_CS, LCD_SCK, LCD_MOSI);
@@ -59,6 +60,41 @@ Arduino_GFX *tft = new Arduino_ILI9486(bus, LCD_RST /* RST */, 1 /* rotation */,
 SdFat SD;
 
 uint16_t currentImage = FIRST_IMAGE;
+
+#if !defined(ARDUINO_M5STACK_CARDPUTER)
+const uint8_t UNO_TFT_DATA_PINS[8] = {8, 9, 2, 3, 4, 5, 6, 7};
+const uint8_t UNO_TFT_RD = A0;
+const uint8_t UNO_TFT_WR = A1;
+const uint8_t UNO_TFT_RS = A2;
+const uint8_t UNO_TFT_CS = A3;
+const uint8_t UNO_TFT_RST = A4;
+
+struct TftRegisterProbe {
+  uint8_t command;
+  const char *name;
+  uint8_t bytesToRead;
+  bool discardFirstByte;
+};
+
+const TftRegisterProbe TFT_REGISTER_PROBES[] = {
+    {0x00, "NOP/status or legacy ID", 2, false},
+    {0x04, "RDDID display ID", 4, true},
+    {0x09, "RDDST display status", 5, true},
+    {0x0A, "RDDPM power mode", 2, true},
+    {0x0B, "RDDMADCTL memory access", 2, true},
+    {0x0C, "RDDCOLMOD pixel format", 2, true},
+    {0x0D, "RDDIM image mode", 2, true},
+    {0x0E, "RDDSM signal mode", 2, true},
+    {0x0F, "RDDSDR self diagnostic", 2, true},
+    {0xA1, "RD_DDB display descriptor", 5, true},
+    {0xBF, "ILI9481/ILI9486 ID", 6, true},
+    {0xD3, "ILI9341/ILI9488 ID4", 4, true},
+    {0xDA, "RDID1 manufacturer", 2, true},
+    {0xDB, "RDID2 driver", 2, true},
+    {0xDC, "RDID3 module", 2, true},
+    {0xEF, "ILI9327/ILI9341 extended ID", 6, true},
+};
+#endif
 
 uint16_t read16(File32 &file) {
   uint16_t value;
@@ -84,6 +120,196 @@ void logMessage(const char *message) {
   Serial.println(message);
 }
 
+#if !defined(ARDUINO_M5STACK_CARDPUTER)
+void setUnoTftDataMode(uint8_t mode) {
+  for (uint8_t i = 0; i < 8; i++) {
+    pinMode(UNO_TFT_DATA_PINS[i], mode);
+  }
+}
+
+void writeUnoTftDataBus(uint8_t value) {
+  for (uint8_t i = 0; i < 8; i++) {
+    digitalWrite(UNO_TFT_DATA_PINS[i], (value & (1 << i)) ? HIGH : LOW);
+  }
+}
+
+uint8_t readUnoTftDataBus() {
+  uint8_t value = 0;
+  for (uint8_t i = 0; i < 8; i++) {
+    if (digitalRead(UNO_TFT_DATA_PINS[i]) == HIGH) {
+      value |= (1 << i);
+    }
+  }
+  return value;
+}
+
+void writeUnoTftCommand(uint8_t command) {
+  setUnoTftDataMode(OUTPUT);
+  digitalWrite(UNO_TFT_RS, LOW);
+  digitalWrite(UNO_TFT_RD, HIGH);
+  writeUnoTftDataBus(command);
+  digitalWrite(UNO_TFT_WR, LOW);
+  delayMicroseconds(2);
+  digitalWrite(UNO_TFT_WR, HIGH);
+  delayMicroseconds(2);
+}
+
+uint8_t readUnoTftByte() {
+  digitalWrite(UNO_TFT_RD, LOW);
+  delayMicroseconds(3);
+  uint8_t value = readUnoTftDataBus();
+  digitalWrite(UNO_TFT_RD, HIGH);
+  delayMicroseconds(3);
+  return value;
+}
+
+void printHexByte(uint8_t value) {
+  if (value < 0x10) {
+    Serial.print('0');
+  }
+  Serial.print(value, HEX);
+}
+
+void printHexWord(uint16_t value) {
+  Serial.print(F("0x"));
+  if (value < 0x1000) {
+    Serial.print('0');
+  }
+  if (value < 0x0100) {
+    Serial.print('0');
+  }
+  if (value < 0x0010) {
+    Serial.print('0');
+  }
+  Serial.print(value, HEX);
+}
+
+void printLikelyController(uint16_t id) {
+  Serial.print(F(" -> "));
+  switch (id) {
+    case 0x0154:
+      Serial.println(F("S6D0154 / S6D0154-compatible"));
+      break;
+    case 0x1289:
+      Serial.println(F("SSD1289"));
+      break;
+    case 0x1520:
+      Serial.println(F("S6D0154/ILI9320 family clone (reported 0x1520)"));
+      break;
+    case 0x1581:
+      Serial.println(F("R61581"));
+      break;
+    case 0x1963:
+      Serial.println(F("SSD1963"));
+      break;
+    case 0x4535:
+      Serial.println(F("LGDP4535"));
+      break;
+    case 0x7783:
+      Serial.println(F("ST7783"));
+      break;
+    case 0x8357:
+      Serial.println(F("HX8357"));
+      break;
+    case 0x8989:
+      Serial.println(F("SSD1289 clone (reported 0x8989)"));
+      break;
+    case 0x9320:
+      Serial.println(F("ILI9320"));
+      break;
+    case 0x9325:
+      Serial.println(F("ILI9325"));
+      break;
+    case 0x9327:
+      Serial.println(F("ILI9327"));
+      break;
+    case 0x9328:
+      Serial.println(F("ILI9328"));
+      break;
+    case 0x9341:
+      Serial.println(F("ILI9341"));
+      break;
+    case 0x9481:
+      Serial.println(F("ILI9481"));
+      break;
+    case 0x9486:
+      Serial.println(F("ILI9486"));
+      break;
+    case 0x9488:
+      Serial.println(F("ILI9488"));
+      break;
+    case 0xFFFF:
+      Serial.println(F("all bits high; LCD bus may be floating, RD may be disconnected, or controller did not answer"));
+      break;
+    case 0x0000:
+      Serial.println(F("all bits low; LCD bus may be held low, CS/RS/RD mapping may differ, or controller did not answer"));
+      break;
+    default:
+      Serial.println(F("unknown/unlisted controller ID"));
+      break;
+  }
+}
+
+void probeUnoTftReadRegisters() {
+  Serial.println(F("TFT hardware probe: UNO 8-bit read-register sweep"));
+  Serial.println(F("Expected shield pins: RD=A0 WR=A1 RS=A2 CS=A3 RST=A4 D0=8 D1=9 D2=2 D3=3 D4=4 D5=5 D6=6 D7=7"));
+  pinMode(UNO_TFT_RD, OUTPUT);
+  pinMode(UNO_TFT_WR, OUTPUT);
+  pinMode(UNO_TFT_RS, OUTPUT);
+  pinMode(UNO_TFT_CS, OUTPUT);
+  pinMode(UNO_TFT_RST, OUTPUT);
+  digitalWrite(UNO_TFT_CS, HIGH);
+  digitalWrite(UNO_TFT_RD, HIGH);
+  digitalWrite(UNO_TFT_WR, HIGH);
+  digitalWrite(UNO_TFT_RS, HIGH);
+
+  Serial.println(F("TFT hardware probe: reset pulse"));
+  digitalWrite(UNO_TFT_RST, HIGH);
+  delay(10);
+  digitalWrite(UNO_TFT_RST, LOW);
+  delay(20);
+  digitalWrite(UNO_TFT_RST, HIGH);
+  delay(150);
+
+  for (uint8_t probeIndex = 0; probeIndex < sizeof(TFT_REGISTER_PROBES) / sizeof(TFT_REGISTER_PROBES[0]); probeIndex++) {
+    TftRegisterProbe probe = TFT_REGISTER_PROBES[probeIndex];
+    uint8_t values[6] = {0};
+    digitalWrite(UNO_TFT_CS, LOW);
+    writeUnoTftCommand(probe.command);
+    digitalWrite(UNO_TFT_RS, HIGH);
+    setUnoTftDataMode(INPUT_PULLUP);
+    for (uint8_t i = 0; i < probe.bytesToRead; i++) {
+      values[i] = readUnoTftByte();
+    }
+    digitalWrite(UNO_TFT_CS, HIGH);
+    setUnoTftDataMode(OUTPUT);
+
+    Serial.print(F("TFT reg 0x"));
+    printHexByte(probe.command);
+    Serial.print(F(" ("));
+    Serial.print(probe.name);
+    Serial.print(F("):"));
+    for (uint8_t i = 0; i < probe.bytesToRead; i++) {
+      Serial.print(' ');
+      printHexByte(values[i]);
+    }
+    Serial.println();
+
+    uint8_t firstPayloadByte = probe.discardFirstByte ? 1 : 0;
+    if (probe.bytesToRead >= firstPayloadByte + 2) {
+      uint16_t candidateId = ((uint16_t)values[firstPayloadByte] << 8) | values[firstPayloadByte + 1];
+      if (candidateId != 0x0000 && candidateId != 0xFFFF) {
+        Serial.print(F("  candidate 16-bit ID from this register: "));
+        printHexWord(candidateId);
+        printLikelyController(candidateId);
+      }
+    }
+  }
+
+  Serial.println(F("TFT hardware probe complete. If every read is 00 or FF, the shield may not support readback on UNO R4 or the control-pin mapping may differ."));
+}
+#endif
+
 
 void showTftSelfTestPattern() {
   Serial.println(F("Drawing TFT self-test color bars"));
@@ -93,6 +319,21 @@ void showTftSelfTestPattern() {
   tft->fillRect(barWidth * 2, 0, barWidth, tft->height(), 0x001F);
   tft->fillRect(barWidth * 3, 0, tft->width() - (barWidth * 3), tft->height(), 0xFFFF);
   delay(1000);
+}
+
+void showTftDiagnosticColorSequence() {
+  Serial.println(F("Drawing TFT diagnostic color sequence: black, white, red, green, blue, color bars"));
+  tft->fillScreen(0x0000);
+  delay(TFT_DIAGNOSTIC_COLOR_DELAY_MS);
+  tft->fillScreen(0xFFFF);
+  delay(TFT_DIAGNOSTIC_COLOR_DELAY_MS);
+  tft->fillScreen(0xF800);
+  delay(TFT_DIAGNOSTIC_COLOR_DELAY_MS);
+  tft->fillScreen(0x07E0);
+  delay(TFT_DIAGNOSTIC_COLOR_DELAY_MS);
+  tft->fillScreen(0x001F);
+  delay(TFT_DIAGNOSTIC_COLOR_DELAY_MS);
+  showTftSelfTestPattern();
 }
 
 void drawStatusMessage() {
@@ -304,6 +545,7 @@ void setup() {
   Serial.println(F("Initializing Cardputer ST7789 TFT over SPI..."));
 #else
   Serial.println(F("Initializing UNO parallel TFT over Arduino_UNOPAR8..."));
+  probeUnoTftReadRegisters();
 #endif
   if (!tft->begin()) {
     Serial.println(F("TFT begin failed"));
@@ -317,7 +559,7 @@ void setup() {
   Serial.print(tft->width());
   Serial.print(F("x"));
   Serial.println(tft->height());
-  showTftSelfTestPattern();
+  showTftDiagnosticColorSequence();
   showStatus(F("Starting SD..."));
 
   Serial.println(F("Initializing SD card..."));
