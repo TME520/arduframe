@@ -1,12 +1,12 @@
 # arduframe
 
-A digital photo frame for an Arduino UNO R4 with a 2.8" Arduino TFT touch shield, or an M5Stack Cardputer using its built-in display and microSD slot.
+A digital photo frame for an Arduino UNO R4 with an Arduino UNO-style parallel TFT shield, or an M5Stack Cardputer using its built-in display and microSD slot.
 
 ## Hardware
 
 ### Arduino UNO R4 with UNO-style TFT shield
 
-This sketch supports an Arduino-compatible 2.8" UNO-style parallel TFT touch shield with an SD card reader. The LCD is driven with `GFX Library for Arduino` (`Arduino_GFX_Library`) using the shield's fixed 8-bit parallel pin mapping. This avoids the `MCU unsupported` compile error from `MCUFRIEND_kbv` on Arduino UNO R4 boards:
+This sketch supports Arduino-compatible UNO-style parallel TFT touch shields with an SD card reader. The LCD is driven with `GFX Library for Arduino` (`Arduino_GFX_Library`) using the shield's fixed 8-bit parallel pin mapping. This avoids the `MCU unsupported` compile error from `MCUFRIEND_kbv` on Arduino UNO R4 boards:
 
 - `LCD_RST`: A4
 - `LCD_CS`: A3
@@ -23,6 +23,14 @@ This sketch supports an Arduino-compatible 2.8" UNO-style parallel TFT touch shi
 - `LCD_D7`: pin 7
 - SD chip select / `SD_SS`: pin 10
 - SD SPI data/clock: pins 11, 12, and 13
+
+The default UNO-style display controller is now `ILI9486`, because many brandless AliExpress shields with this exact pinout are 3.5-inch 320x480 ILI9486 panels. If Serial says images are displayed successfully but the screen stays white, the LCD backlight is powered but the controller probably was initialized with the wrong driver. For a 2.8-inch 240x320 ILI9341 shield, change the default near the top of `arduframe.ino` to:
+
+```cpp
+#define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_ILI9341
+```
+
+The startup log prints the selected controller and drawable size so you can confirm the build, for example `UNO TFT driver: ILI9486 320x480`.
 
 The LCD on this shield is not an SPI display, so `TFT_CS` and `TFT_DC` are not configurable sketch constants. On UNO-style builds the sketch uses `Arduino_UNOPAR8`, whose UNO-shield control/data pins are fixed by the library. The SD card still uses SPI and must use the `SD_CS` value near the top of `arduframe.ino`.
 
@@ -93,7 +101,7 @@ slideshow002.bmp
 slideshow999.bmp
 ```
 
-Use uncompressed 24-bit BMP images sized to the TFT resolution, usually 320x240 pixels on the UNO-style ILI9341 shield, or 240x135 pixels on the M5Stack Cardputer built-in ST7789 display. The sketch configures display rotation `1`.
+Use uncompressed 24-bit BMP images sized to the TFT resolution: usually 480x320 pixels on a landscape UNO-style ILI9486 shield, 320x240 pixels on a landscape UNO-style ILI9341 shield, or 240x135 pixels on the M5Stack Cardputer built-in ST7789 display. The sketch configures display rotation `1`.
 
 ## Behavior
 
