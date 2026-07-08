@@ -23,6 +23,16 @@
 #else
 #define LCD_RST A4
 #define SD_CS 10
+// Many brandless AliExpress UNO-style shields with this exact pinout are
+// 3.5-inch 320x480 ILI9486 panels.  A wrong controller init commonly leaves
+// the backlight on but the LCD glass white, while Serial still reports that
+// images were read and drawn.  Set this to ARDUFRAME_TFT_ILI9341 for 2.8-inch
+// 240x320 shields.
+#define ARDUFRAME_TFT_ILI9341 1
+#define ARDUFRAME_TFT_ILI9486 2
+#ifndef ARDUFRAME_TFT_DRIVER
+#define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_ILI9486
+#endif
 #endif
 
 const uint16_t FIRST_IMAGE = 1;
@@ -38,7 +48,13 @@ Arduino_DataBus *bus = new Arduino_ESP32SPI(LCD_DC, LCD_CS, LCD_SCK, LCD_MOSI);
 Arduino_GFX *tft = new Arduino_ST7789(bus, LCD_RST, 1 /* rotation */, true /* IPS */, 135, 240, 52, 40);
 #else
 Arduino_DataBus *bus = new Arduino_UNOPAR8();
+#if ARDUFRAME_TFT_DRIVER == ARDUFRAME_TFT_ILI9341
 Arduino_GFX *tft = new Arduino_ILI9341(bus, LCD_RST /* RST */, 1 /* rotation */, false /* IPS */);
+#elif ARDUFRAME_TFT_DRIVER == ARDUFRAME_TFT_ILI9486
+Arduino_GFX *tft = new Arduino_ILI9486(bus, LCD_RST /* RST */, 1 /* rotation */, false /* IPS */);
+#else
+#error "Unsupported ARDUFRAME_TFT_DRIVER; use ARDUFRAME_TFT_ILI9341 or ARDUFRAME_TFT_ILI9486"
+#endif
 #endif
 SdFat SD;
 
@@ -259,6 +275,14 @@ void setup() {
   Serial.print(F("LCD interface: UNO-style 8-bit parallel shield, SD_CS="));
 #endif
   Serial.println(SD_CS);
+#if !defined(ARDUINO_M5STACK_CARDPUTER)
+  Serial.print(F("UNO TFT driver: "));
+#if ARDUFRAME_TFT_DRIVER == ARDUFRAME_TFT_ILI9341
+  Serial.println(F("ILI9341 240x320"));
+#elif ARDUFRAME_TFT_DRIVER == ARDUFRAME_TFT_ILI9486
+  Serial.println(F("ILI9486 320x480"));
+#endif
+#endif
 
   pinMode(SD_CS, OUTPUT);
   digitalWrite(SD_CS, HIGH);
@@ -268,7 +292,7 @@ void setup() {
   digitalWrite(LCD_BL, HIGH);
   Serial.println(F("Initializing Cardputer ST7789 TFT over SPI..."));
 #else
-  Serial.println(F("Initializing ILI9341 TFT over Arduino_UNOPAR8..."));
+  Serial.println(F("Initializing UNO parallel TFT over Arduino_UNOPAR8..."));
 #endif
   if (!tft->begin()) {
     Serial.println(F("TFT begin failed"));
@@ -278,6 +302,10 @@ void setup() {
     }
   }
   Serial.println(F("TFT initialized with rotation 1"));
+  Serial.print(F("TFT drawable size: "));
+  Serial.print(tft->width());
+  Serial.print(F("x"));
+  Serial.println(tft->height());
   showStatus(F("Starting SD..."));
 
   Serial.println(F("Initializing SD card..."));
