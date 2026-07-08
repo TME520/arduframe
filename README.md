@@ -30,9 +30,26 @@ The default UNO-style display controller is `ILI9341`, because brandless AliExpr
 #define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_ILI9486
 ```
 
+If the controller is still unknown, the sketch now supports a small compile-and-upload trial matrix for likely UNO parallel shield controllers. Change `ARDUFRAME_TFT_DRIVER` to one of these values, upload, and watch both the Serial log and the startup color sequence:
+
+```cpp
+#define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_ILI9341  // common 2.8-inch 240x320 shields
+#define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_ILI9486  // common 3.5-inch 320x480 shields
+#define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_ILI9488  // alternate 320x480 controller
+#define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_HX8357   // alternate 320x480 controller
+```
+
+For hands-on testing, set `ARDUFRAME_TFT_DIAGNOSTIC_TRIAL_SECONDS` above `0` so the color pattern remains visible before the sketch moves on to SD-card and slideshow work:
+
+```cpp
+#define ARDUFRAME_TFT_DIAGNOSTIC_TRIAL_SECONDS 20
+```
+
+A good trial is one where the screen visibly changes through black, white, red, green, blue, and bars with the expected orientation and size. A white-only screen for one driver but visible colors for another strongly identifies the working controller family.
+
 At startup, the sketch draws one second of red/green/blue/white color bars before initializing the SD card. If those bars remain white or invisible, the failure is in the TFT controller/pin initialization rather than BMP decoding or SD reading. The startup log prints the selected controller and drawable size so you can confirm the build, for example `UNO TFT driver: ILI9341 240x320`.
 
-Before the normal graphics-library initialization, UNO-style builds also run a low-level TFT readback probe against the shield's 8-bit parallel bus. The log includes a reset pulse, the expected pin mapping, and a sweep of common display-controller registers such as `0x04`, `0x09`, `0xBF`, `0xD3`, `0xDA`, `0xDB`, `0xDC`, and `0xEF`. When the controller answers, the sketch prints candidate 16-bit IDs and labels for common chips such as `ILI9341`, `ILI9486`, `ILI9325`, `ILI9328`, `HX8357`, `SSD1289`, and related clone IDs. If every read is `00` or `FF`, the LCD read line may be unavailable on that shield, the controller may not support those reads, or the shield may not actually match the UNO control/data pin mapping printed by the sketch.
+Before the normal graphics-library initialization, UNO-style builds also run a low-level TFT readback probe against the shield's 8-bit parallel bus. The log includes a reset pulse, the expected pin mapping, and a sweep of common display-controller registers such as `0x04`, `0x09`, `0xBF`, `0xD3`, `0xDA`, `0xDB`, `0xDC`, and `0xEF`. The probe runs twice, once with internal pullups and once with floating inputs, to separate likely controller replies from floating-bus noise. When the controller answers, the sketch prints direct, byte-swapped, and bit-reversed candidate 16-bit IDs with labels for common chips such as `ILI9341`, `ILI9486`, `ILI9488`, `ILI9325`, `ILI9328`, `HX8357`, `SSD1289`, and related clone IDs. If every read is `00` or `FF`, the LCD read line may be unavailable on that shield, the controller may not support those reads, or the shield may not actually match the UNO control/data pin mapping printed by the sketch.
 
 After initialization, the visible TFT diagnostic is now longer than a single color-bar flash: the sketch fills the whole display black, white, red, green, and blue, then draws red/green/blue/white bars. If the Serial Monitor continues into SD and BMP messages but none of these colors appear, focus on the LCD controller type, reset/control pins, or shield compatibility rather than the SD card or BMP files.
 

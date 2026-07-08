@@ -30,8 +30,13 @@
 // 3.5-inch 320x480 shields.
 #define ARDUFRAME_TFT_ILI9341 1
 #define ARDUFRAME_TFT_ILI9486 2
+#define ARDUFRAME_TFT_ILI9488 3
+#define ARDUFRAME_TFT_HX8357 4
 #ifndef ARDUFRAME_TFT_DRIVER
 #define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_ILI9341
+#endif
+#ifndef ARDUFRAME_TFT_DIAGNOSTIC_TRIAL_SECONDS
+#define ARDUFRAME_TFT_DIAGNOSTIC_TRIAL_SECONDS 0
 #endif
 #endif
 
@@ -62,8 +67,12 @@ Arduino_DataBus *bus = new Arduino_UNOPAR8();
 Arduino_GFX *tft = new Arduino_ILI9341(bus, LCD_RST /* RST */, 1 /* rotation */, false /* IPS */);
 #elif ARDUFRAME_TFT_DRIVER == ARDUFRAME_TFT_ILI9486
 Arduino_GFX *tft = new Arduino_ILI9486(bus, LCD_RST /* RST */, 1 /* rotation */, false /* IPS */);
+#elif ARDUFRAME_TFT_DRIVER == ARDUFRAME_TFT_ILI9488
+Arduino_GFX *tft = new Arduino_ILI9488(bus, LCD_RST /* RST */, 1 /* rotation */, false /* IPS */);
+#elif ARDUFRAME_TFT_DRIVER == ARDUFRAME_TFT_HX8357
+Arduino_GFX *tft = new Arduino_HX8357(bus, LCD_RST /* RST */, 1 /* rotation */, false /* IPS */);
 #else
-#error "Unsupported ARDUFRAME_TFT_DRIVER; use ARDUFRAME_TFT_ILI9341 or ARDUFRAME_TFT_ILI9486"
+#error "Unsupported ARDUFRAME_TFT_DRIVER; use ARDUFRAME_TFT_ILI9341, ARDUFRAME_TFT_ILI9486, ARDUFRAME_TFT_ILI9488, or ARDUFRAME_TFT_HX8357"
 #endif
 #endif
 SdFat SD;
@@ -103,6 +112,10 @@ const TftRegisterProbe TFT_REGISTER_PROBES[] = {
     {0xDC, F("RDID3 module"), 2, true},
     {0xEF, F("ILI9327/ILI9341 extended ID"), 6, true},
 };
+#endif
+
+#if !defined(ARDUINO_M5STACK_CARDPUTER)
+void printLikelyController(uint16_t id);
 #endif
 
 uint16_t readLe16(const uint8_t *buffer) {
@@ -187,6 +200,42 @@ void printHexWord(uint16_t value) {
   Serial.print(value, HEX);
 }
 
+
+uint8_t reverseBits(uint8_t value) {
+  value = ((value & 0xF0) >> 4) | ((value & 0x0F) << 4);
+  value = ((value & 0xCC) >> 2) | ((value & 0x33) << 2);
+  value = ((value & 0xAA) >> 1) | ((value & 0x55) << 1);
+  return value;
+}
+
+void printCandidateIdWithLabel(FlashString label, uint16_t id) {
+  Serial.print(F("  "));
+  Serial.print(label);
+  Serial.print(F(": "));
+  printHexWord(id);
+  printLikelyController(id);
+}
+
+void printRegisterCandidateIds(const uint8_t *values, uint8_t byteCount, uint8_t firstPayloadByte) {
+  if (byteCount < firstPayloadByte + 2) {
+    return;
+  }
+
+  uint16_t directId = ((uint16_t)values[firstPayloadByte] << 8) | values[firstPayloadByte + 1];
+  uint16_t swappedId = ((uint16_t)values[firstPayloadByte + 1] << 8) | values[firstPayloadByte];
+  uint16_t bitReversedId = ((uint16_t)reverseBits(values[firstPayloadByte]) << 8) | reverseBits(values[firstPayloadByte + 1]);
+
+  if (directId != 0x0000 && directId != 0xFFFF) {
+    printCandidateIdWithLabel(F("candidate direct 16-bit ID"), directId);
+  }
+  if (swappedId != directId && swappedId != 0x0000 && swappedId != 0xFFFF) {
+    printCandidateIdWithLabel(F("candidate byte-swapped ID"), swappedId);
+  }
+  if (bitReversedId != directId && bitReversedId != swappedId && bitReversedId != 0x0000 && bitReversedId != 0xFFFF) {
+    printCandidateIdWithLabel(F("candidate bit-reversed-data ID"), bitReversedId);
+  }
+}
+
 void printLikelyController(uint16_t id) {
   Serial.print(F(" -> "));
   switch (id) {
@@ -262,8 +311,9 @@ void printUnoShieldIdentificationChecklist() {
   Serial.println(F("  5) If the startup color test stays white, share those markings with this serial log."));
 }
 
-void probeUnoTftReadRegisters() {
-  Serial.println(F("TFT hardware probe: UNO 8-bit read-register sweep"));
+void probeUnoTftReadRegistersWithMode(uint8_t dataInputMode, FlashString modeName) {
+  Serial.print(F("TFT hardware probe: UNO 8-bit read-register sweep with data pins as "));
+  Serial.println(modeName);
   Serial.println(F("Expected shield pins: RD=A0 WR=A1 RS=A2 CS=A3 RST=A4 D0=8 D1=9 D2=2 D3=3 D4=4 D5=5 D6=6 D7=7"));
   pinMode(UNO_TFT_RD, OUTPUT);
   pinMode(UNO_TFT_WR, OUTPUT);
@@ -289,7 +339,7 @@ void probeUnoTftReadRegisters() {
     digitalWrite(UNO_TFT_CS, LOW);
     writeUnoTftCommand(probe.command);
     digitalWrite(UNO_TFT_RS, HIGH);
-    setUnoTftDataMode(INPUT_PULLUP);
+    setUnoTftDataMode(dataInputMode);
     for (uint8_t i = 0; i < probe.bytesToRead; i++) {
       values[i] = readUnoTftByte();
     }
@@ -308,17 +358,16 @@ void probeUnoTftReadRegisters() {
     Serial.println();
 
     uint8_t firstPayloadByte = probe.discardFirstByte ? 1 : 0;
-    if (probe.bytesToRead >= firstPayloadByte + 2) {
-      uint16_t candidateId = ((uint16_t)values[firstPayloadByte] << 8) | values[firstPayloadByte + 1];
-      if (candidateId != 0x0000 && candidateId != 0xFFFF) {
-        Serial.print(F("  candidate 16-bit ID from this register: "));
-        printHexWord(candidateId);
-        printLikelyController(candidateId);
-      }
-    }
+    printRegisterCandidateIds(values, probe.bytesToRead, firstPayloadByte);
   }
 
-  Serial.println(F("TFT hardware probe complete. If every read is 00 or FF, the shield may not support readback on UNO R4 or the control-pin mapping may differ."));
+  Serial.println(F("TFT hardware probe pass complete."));
+}
+
+void probeUnoTftReadRegisters() {
+  probeUnoTftReadRegistersWithMode(INPUT_PULLUP, F("INPUT_PULLUP"));
+  probeUnoTftReadRegistersWithMode(INPUT, F("INPUT/floating"));
+  Serial.println(F("TFT hardware probe complete. Compare the two passes: stable non-00/non-FF bytes are more likely real controller responses than floating-bus noise."));
 }
 #endif
 
@@ -331,6 +380,36 @@ void showTftSelfTestPattern() {
   tft->fillRect(barWidth * 2, 0, barWidth, tft->height(), 0x001F);
   tft->fillRect(barWidth * 3, 0, tft->width() - (barWidth * 3), tft->height(), 0xFFFF);
   delay(1000);
+}
+
+void printSelectedTftDriver() {
+#if defined(ARDUINO_M5STACK_CARDPUTER)
+  Serial.println(F("ST7789 135x240"));
+#elif ARDUFRAME_TFT_DRIVER == ARDUFRAME_TFT_ILI9341
+  Serial.println(F("ILI9341 240x320"));
+#elif ARDUFRAME_TFT_DRIVER == ARDUFRAME_TFT_ILI9486
+  Serial.println(F("ILI9486 320x480"));
+#elif ARDUFRAME_TFT_DRIVER == ARDUFRAME_TFT_ILI9488
+  Serial.println(F("ILI9488 320x480 trial"));
+#elif ARDUFRAME_TFT_DRIVER == ARDUFRAME_TFT_HX8357
+  Serial.println(F("HX8357 320x480 trial"));
+#endif
+}
+
+void pauseForDriverTrialInspection() {
+#if !defined(ARDUINO_M5STACK_CARDPUTER)
+#if ARDUFRAME_TFT_DIAGNOSTIC_TRIAL_SECONDS > 0
+  Serial.print(F("TFT driver trial hold seconds: "));
+  Serial.println(ARDUFRAME_TFT_DIAGNOSTIC_TRIAL_SECONDS);
+  for (uint16_t second = 0; second < ARDUFRAME_TFT_DIAGNOSTIC_TRIAL_SECONDS; second++) {
+    delay(1000);
+    if ((second % 5) == 4) {
+      Serial.print(F("  still holding visible test for driver trial, elapsed seconds: "));
+      Serial.println(second + 1);
+    }
+  }
+#endif
+#endif
 }
 
 void showTftDiagnosticColorSequence() {
@@ -346,6 +425,7 @@ void showTftDiagnosticColorSequence() {
   tft->fillScreen(0x001F);
   delay(TFT_DIAGNOSTIC_COLOR_DELAY_MS);
   showTftSelfTestPattern();
+  pauseForDriverTrialInspection();
 }
 
 void drawStatusMessage() {
@@ -594,11 +674,7 @@ void setup() {
   Serial.println(SD_CS);
 #if !defined(ARDUINO_M5STACK_CARDPUTER)
   Serial.print(F("UNO TFT driver: "));
-#if ARDUFRAME_TFT_DRIVER == ARDUFRAME_TFT_ILI9341
-  Serial.println(F("ILI9341 240x320"));
-#elif ARDUFRAME_TFT_DRIVER == ARDUFRAME_TFT_ILI9486
-  Serial.println(F("ILI9486 320x480"));
-#endif
+  printSelectedTftDriver();
   printUnoShieldIdentificationChecklist();
 #endif
 
