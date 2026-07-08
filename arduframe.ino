@@ -44,6 +44,12 @@ const uint8_t SD_INIT_SPEEDS_MHZ[] = {10, 4, 1};
 const uint16_t BMP_READ_BUFFER_PIXELS = 40;
 const uint16_t TFT_DIAGNOSTIC_COLOR_DELAY_MS = 450;
 
+#if defined(ARDUINO_ARCH_AVR)
+typedef const __FlashStringHelper *FlashString;
+#else
+typedef const char *FlashString;
+#endif
+
 #if defined(ARDUINO_M5STACK_CARDPUTER)
 Arduino_DataBus *bus = new Arduino_ESP32SPI(LCD_DC, LCD_CS, LCD_SCK, LCD_MOSI);
 Arduino_GFX *tft = new Arduino_ST7789(bus, LCD_RST, 1 /* rotation */, true /* IPS */, 135, 240, 52, 40);
@@ -71,7 +77,7 @@ const uint8_t UNO_TFT_RST = A4;
 
 struct TftRegisterProbe {
   uint8_t command;
-  const __FlashStringHelper *name;
+  FlashString name;
   uint8_t bytesToRead;
   bool discardFirstByte;
 };
@@ -112,13 +118,15 @@ uint32_t read32(File32 &file) {
   return value;
 }
 
-void logMessage(const __FlashStringHelper *message) {
+void logMessage(FlashString message) {
   Serial.println(message);
 }
 
+#if defined(ARDUINO_ARCH_AVR)
 void logMessage(const char *message) {
   Serial.println(message);
 }
+#endif
 
 #if !defined(ARDUINO_M5STACK_CARDPUTER)
 void setUnoTftDataMode(uint8_t mode) {
@@ -343,17 +351,19 @@ void drawStatusMessage() {
   tft->setTextSize(2);
 }
 
-void showStatus(const __FlashStringHelper *message) {
+void showStatus(FlashString message) {
   logMessage(message);
   drawStatusMessage();
   tft->print(message);
 }
 
+#if defined(ARDUINO_ARCH_AVR)
 void showStatus(const char *message) {
   logMessage(message);
   drawStatusMessage();
   tft->print(message);
 }
+#endif
 
 void buildImageName(uint16_t imageNumber, char *buffer, size_t bufferSize) {
   snprintf(buffer, bufferSize, "/slideshow%03u.bmp", imageNumber);
