@@ -38,6 +38,12 @@
 #ifndef ARDUFRAME_TFT_DIAGNOSTIC_TRIAL_SECONDS
 #define ARDUFRAME_TFT_DIAGNOSTIC_TRIAL_SECONDS 0
 #endif
+#ifndef ARDUFRAME_TFT_CONTROLLER_TRIAL_SECONDS
+#define ARDUFRAME_TFT_CONTROLLER_TRIAL_SECONDS 4
+#endif
+#endif
+#ifndef ARDUFRAME_DRAW_DIAGNOSTIC_OVERLAY
+#define ARDUFRAME_DRAW_DIAGNOSTIC_OVERLAY 1
 #endif
 
 const uint16_t FIRST_IMAGE = 1;
@@ -124,6 +130,32 @@ uint16_t readLe16(const uint8_t *buffer) {
 
 uint32_t readLe32(const uint8_t *buffer) {
   return (uint32_t)buffer[0] | ((uint32_t)buffer[1] << 8) | ((uint32_t)buffer[2] << 16) | ((uint32_t)buffer[3] << 24);
+}
+
+uint8_t scaleMaskedChannel(uint32_t pixel, uint32_t mask) {
+  if (mask == 0) {
+    return 0;
+  }
+
+  uint8_t shift = 0;
+  while (shift < 32 && ((mask >> shift) & 0x01) == 0) {
+    shift++;
+  }
+
+  uint8_t bits = 0;
+  uint32_t shiftedMask = mask >> shift;
+  while ((shiftedMask & 0x01) != 0) {
+    bits++;
+    shiftedMask >>= 1;
+  }
+
+  if (bits == 0) {
+    return 0;
+  }
+
+  uint32_t value = (pixel & mask) >> shift;
+  uint32_t maxValue = (bits >= 32) ? 0xFFFFFFFFUL : ((1UL << bits) - 1);
+  return (uint8_t)((value * 255UL + (maxValue / 2)) / maxValue);
 }
 
 void logMessage(FlashString message) {
@@ -382,6 +414,71 @@ void showTftSelfTestPattern() {
   delay(1000);
 }
 
+#if !defined(ARDUINO_M5STACK_CARDPUTER)
+void drawDriverTrialPattern(Arduino_GFX *trialTft, FlashString driverName, uint16_t accentColor) {
+  Serial.print(F("TFT controller trial: "));
+  Serial.println(driverName);
+  if (!trialTft->begin()) {
+    Serial.println(F("  trial begin failed"));
+    return;
+  }
+
+  int16_t width = trialTft->width();
+  int16_t height = trialTft->height();
+  Serial.print(F("  trial drawable size: "));
+  Serial.print(width);
+  Serial.print(F("x"));
+  Serial.println(height);
+
+  trialTft->fillScreen(0x0000);
+  delay(150);
+  trialTft->fillRect(0, 0, width / 3, height, 0xF800);
+  trialTft->fillRect(width / 3, 0, width / 3, height, 0x07E0);
+  trialTft->fillRect((width / 3) * 2, 0, width - ((width / 3) * 2), height, 0x001F);
+  trialTft->drawRect(0, 0, width, height, 0xFFFF);
+  trialTft->drawLine(0, 0, width - 1, height - 1, accentColor);
+  trialTft->drawLine(width - 1, 0, 0, height - 1, accentColor);
+  trialTft->fillCircle(width / 2, height / 2, min(width, height) / 8, 0xFFFF ^ accentColor);
+  trialTft->setCursor(8, 8);
+  trialTft->setTextColor(0xFFFF);
+  trialTft->setTextSize(2);
+  trialTft->print(driverName);
+
+  for (uint8_t second = 0; second < ARDUFRAME_TFT_CONTROLLER_TRIAL_SECONDS; second++) {
+    delay(1000);
+  }
+}
+
+void runUnoTftControllerTrials() {
+#if ARDUFRAME_TFT_CONTROLLER_TRIAL_SECONDS > 0
+  Serial.println(F("Starting visible TFT controller trial set."));
+  Serial.println(F("Watch the LCD: the first driver that shows colored stripes, diagonals, a circle, and its label is the best controller candidate."));
+  Serial.println(F("If all trials stay white, suspect shield pin mapping, reset/control wiring, level compatibility, or a non-UNO-parallel shield."));
+  {
+    Arduino_UNOPAR8 trialBus;
+    Arduino_ILI9341 trialTft(&trialBus, LCD_RST /* RST */, 1 /* rotation */, false /* IPS */);
+    drawDriverTrialPattern(&trialTft, F("ILI9341"), 0xFFE0);
+  }
+  {
+    Arduino_UNOPAR8 trialBus;
+    Arduino_ILI9486 trialTft(&trialBus, LCD_RST /* RST */, 1 /* rotation */, false /* IPS */);
+    drawDriverTrialPattern(&trialTft, F("ILI9486"), 0xF81F);
+  }
+  {
+    Arduino_UNOPAR8 trialBus;
+    Arduino_ILI9488 trialTft(&trialBus, LCD_RST /* RST */, 1 /* rotation */, false /* IPS */);
+    drawDriverTrialPattern(&trialTft, F("ILI9488"), 0x07FF);
+  }
+  {
+    Arduino_UNOPAR8 trialBus;
+    Arduino_HX8357 trialTft(&trialBus, LCD_RST /* RST */, 1 /* rotation */, false /* IPS */);
+    drawDriverTrialPattern(&trialTft, F("HX8357"), 0xFFFF);
+  }
+  Serial.println(F("TFT controller trial set complete; continuing with the selected compile-time driver."));
+#endif
+}
+#endif
+
 void printSelectedTftDriver() {
 #if defined(ARDUINO_M5STACK_CARDPUTER)
   Serial.println(F("ST7789 135x240"));
@@ -412,6 +509,22 @@ void pauseForDriverTrialInspection() {
 #endif
 }
 
+void drawDiagnosticOverlay() {
+#if ARDUFRAME_DRAW_DIAGNOSTIC_OVERLAY
+  int16_t width = tft->width();
+  int16_t height = tft->height();
+  Serial.println(F("Drawing high-contrast diagnostic overlay on top of current framebuffer"));
+  tft->drawRect(0, 0, width, height, 0xFFFF);
+  tft->drawRect(2, 2, width - 4, height - 4, 0x0000);
+  tft->drawLine(0, 0, width - 1, height - 1, 0xFFE0);
+  tft->drawLine(width - 1, 0, 0, height - 1, 0xF81F);
+  tft->drawFastHLine(0, height / 2, width, 0x07FF);
+  tft->drawFastVLine(width / 2, 0, height, 0x07FF);
+  tft->fillCircle(width / 2, height / 2, min(width, height) / 12, 0x0000);
+  tft->drawCircle(width / 2, height / 2, min(width, height) / 12, 0xFFFF);
+#endif
+}
+
 void showTftDiagnosticColorSequence() {
   Serial.println(F("Drawing TFT diagnostic color sequence: black, white, red, green, blue, color bars"));
   tft->fillScreen(0x0000);
@@ -425,6 +538,7 @@ void showTftDiagnosticColorSequence() {
   tft->fillScreen(0x001F);
   delay(TFT_DIAGNOSTIC_COLOR_DELAY_MS);
   showTftSelfTestPattern();
+  drawDiagnosticOverlay();
   pauseForDriverTrialInspection();
 }
 
@@ -527,7 +641,38 @@ bool drawBmp(const char *filename, int16_t x, int16_t y) {
 
   uint16_t bitDepth = readLe16(&bmpHeader[28]);
   uint32_t compression = readLe32(&bmpHeader[30]);
-  if (headerSize < 40 || bmpWidth <= 0 || bmpHeight == 0 || compression != 0 ||
+  bool usesBitfieldMasks = (bitDepth == BMP_SUPPORTED_DEPTH_32 && compression == 3);
+  bool supportedCompression = (compression == 0) || usesBitfieldMasks;
+  uint32_t redMask = 0x00FF0000UL;
+  uint32_t greenMask = 0x0000FF00UL;
+  uint32_t blueMask = 0x000000FFUL;
+
+  if (usesBitfieldMasks) {
+    if (headerSize != 40 && headerSize < 56) {
+      Serial.println(F("Unsupported BMP: 32-bit BI_BITFIELDS header is too short for color masks"));
+      bmpFile.close();
+      return false;
+    }
+
+    uint8_t maskBytes[16];
+    if (!bmpFile.seekSet(54) || bmpFile.read(maskBytes, sizeof(maskBytes)) != (int)sizeof(maskBytes)) {
+      Serial.println(F("BMP bitfield mask read failed"));
+      bmpFile.close();
+      return false;
+    }
+
+    redMask = readLe32(&maskBytes[0]);
+    greenMask = readLe32(&maskBytes[4]);
+    blueMask = readLe32(&maskBytes[8]);
+    Serial.print(F("BMP 32-bit BI_BITFIELDS masks: R=0x"));
+    Serial.print(redMask, HEX);
+    Serial.print(F(" G=0x"));
+    Serial.print(greenMask, HEX);
+    Serial.print(F(" B=0x"));
+    Serial.println(blueMask, HEX);
+  }
+
+  if (headerSize < 40 || bmpWidth <= 0 || bmpHeight == 0 || !supportedCompression ||
       (bitDepth != BMP_SUPPORTED_DEPTH_24 && bitDepth != BMP_SUPPORTED_DEPTH_32)) {
     Serial.print(F("Unsupported BMP: header="));
     Serial.print(headerSize);
@@ -539,7 +684,7 @@ bool drawBmp(const char *filename, int16_t x, int16_t y) {
     Serial.print(bitDepth);
     Serial.print(F(" compression="));
     Serial.println(compression);
-    Serial.println(F("BMP must be uncompressed 24-bit or 32-bit format"));
+    Serial.println(F("BMP must be uncompressed 24-bit/32-bit, or 32-bit BI_BITFIELDS format"));
     bmpFile.close();
     return false;
   }
@@ -614,7 +759,13 @@ bool drawBmp(const char *filename, int16_t x, int16_t y) {
         uint8_t g = *src++;
         uint8_t r = *src++;
         if (bytesPerPixel == 4) {
-          src++; // Ignore the BMP alpha/reserved byte.
+          uint8_t a = *src++; // Ignore alpha unless BI_BITFIELDS masks repurpose byte order.
+          if (usesBitfieldMasks) {
+            uint32_t pixel = (uint32_t)b | ((uint32_t)g << 8) | ((uint32_t)r << 16) | ((uint32_t)a << 24);
+            r = scaleMaskedChannel(pixel, redMask);
+            g = scaleMaskedChannel(pixel, greenMask);
+            b = scaleMaskedChannel(pixel, blueMask);
+          }
         }
         lcdbuffer[i] = tft->color565(r, g, b);
       }
@@ -651,6 +802,7 @@ void displayImage(uint16_t imageNumber) {
     tft->setCursor(8, 34);
     tft->print(filename);
   } else {
+    drawDiagnosticOverlay();
     Serial.print(F("Image displayed successfully: "));
     Serial.println(filename);
   }
@@ -688,6 +840,7 @@ void setup() {
 #else
   Serial.println(F("Initializing UNO parallel TFT over Arduino_UNOPAR8..."));
   probeUnoTftReadRegisters();
+  runUnoTftControllerTrials();
 #endif
   if (!tft->begin()) {
     Serial.println(F("TFT begin failed"));
