@@ -71,28 +71,28 @@ const uint8_t UNO_TFT_RST = A4;
 
 struct TftRegisterProbe {
   uint8_t command;
-  const char *name;
+  const __FlashStringHelper *name;
   uint8_t bytesToRead;
   bool discardFirstByte;
 };
 
 const TftRegisterProbe TFT_REGISTER_PROBES[] = {
-    {0x00, "NOP/status or legacy ID", 2, false},
-    {0x04, "RDDID display ID", 4, true},
-    {0x09, "RDDST display status", 5, true},
-    {0x0A, "RDDPM power mode", 2, true},
-    {0x0B, "RDDMADCTL memory access", 2, true},
-    {0x0C, "RDDCOLMOD pixel format", 2, true},
-    {0x0D, "RDDIM image mode", 2, true},
-    {0x0E, "RDDSM signal mode", 2, true},
-    {0x0F, "RDDSDR self diagnostic", 2, true},
-    {0xA1, "RD_DDB display descriptor", 5, true},
-    {0xBF, "ILI9481/ILI9486 ID", 6, true},
-    {0xD3, "ILI9341/ILI9488 ID4", 4, true},
-    {0xDA, "RDID1 manufacturer", 2, true},
-    {0xDB, "RDID2 driver", 2, true},
-    {0xDC, "RDID3 module", 2, true},
-    {0xEF, "ILI9327/ILI9341 extended ID", 6, true},
+    {0x00, F("NOP/status or legacy ID"), 2, false},
+    {0x04, F("RDDID display ID"), 4, true},
+    {0x09, F("RDDST display status"), 5, true},
+    {0x0A, F("RDDPM power mode"), 2, true},
+    {0x0B, F("RDDMADCTL memory access"), 2, true},
+    {0x0C, F("RDDCOLMOD pixel format"), 2, true},
+    {0x0D, F("RDDIM image mode"), 2, true},
+    {0x0E, F("RDDSM signal mode"), 2, true},
+    {0x0F, F("RDDSDR self diagnostic"), 2, true},
+    {0xA1, F("RD_DDB display descriptor"), 5, true},
+    {0xBF, F("ILI9481/ILI9486 ID"), 6, true},
+    {0xD3, F("ILI9341/ILI9488 ID4"), 4, true},
+    {0xDA, F("RDID1 manufacturer"), 2, true},
+    {0xDB, F("RDID2 driver"), 2, true},
+    {0xDC, F("RDID3 module"), 2, true},
+    {0xEF, F("ILI9327/ILI9341 extended ID"), 6, true},
 };
 #endif
 
