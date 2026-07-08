@@ -105,20 +105,12 @@ const TftRegisterProbe TFT_REGISTER_PROBES[] = {
 };
 #endif
 
-uint16_t read16(File32 &file) {
-  uint16_t value;
-  value = (uint8_t)file.read();
-  value |= (uint16_t)file.read() << 8;
-  return value;
+uint16_t readLe16(const uint8_t *buffer) {
+  return (uint16_t)buffer[0] | ((uint16_t)buffer[1] << 8);
 }
 
-uint32_t read32(File32 &file) {
-  uint32_t value;
-  value = (uint8_t)file.read();
-  value |= (uint32_t)file.read() << 8;
-  value |= (uint32_t)file.read() << 16;
-  value |= (uint32_t)file.read() << 24;
-  return value;
+uint32_t readLe32(const uint8_t *buffer) {
+  return (uint32_t)buffer[0] | ((uint32_t)buffer[1] << 8) | ((uint32_t)buffer[2] << 16) | ((uint32_t)buffer[3] << 24);
 }
 
 void logMessage(FlashString message) {
@@ -422,29 +414,39 @@ bool drawBmp(const char *filename, int16_t x, int16_t y) {
     return false;
   }
 
-  Serial.println(F("BMP file opened; reading header"));
+  Serial.println(F("BMP file opened; reading 54-byte header block"));
+  uint8_t bmpHeader[54];
+  int bytesRead = bmpFile.read(bmpHeader, sizeof(bmpHeader));
+  if (bytesRead != (int)sizeof(bmpHeader)) {
+    Serial.print(F("BMP header read failed: bytes="));
+    Serial.print(bytesRead);
+    Serial.print(F(" expected="));
+    Serial.println(sizeof(bmpHeader));
+    bmpFile.close();
+    return false;
+  }
+  Serial.println(F("BMP header block read complete"));
 
-  if (read16(bmpFile) != 0x4D42) {
-    Serial.println(F("BMP signature mismatch"));
+  if (readLe16(&bmpHeader[0]) != 0x4D42) {
+    Serial.print(F("BMP signature mismatch: 0x"));
+    Serial.println(readLe16(&bmpHeader[0]), HEX);
     bmpFile.close();
     return false;
   }
 
-  (void)read32(bmpFile); // File size.
-  (void)read32(bmpFile); // Creator bytes.
-  uint32_t imageOffset = read32(bmpFile);
-  uint32_t headerSize = read32(bmpFile);
-  int32_t bmpWidth = (int32_t)read32(bmpFile);
-  int32_t bmpHeight = (int32_t)read32(bmpFile);
+  uint32_t imageOffset = readLe32(&bmpHeader[10]);
+  uint32_t headerSize = readLe32(&bmpHeader[14]);
+  int32_t bmpWidth = (int32_t)readLe32(&bmpHeader[18]);
+  int32_t bmpHeight = (int32_t)readLe32(&bmpHeader[22]);
 
-  if (read16(bmpFile) != 1) {
+  if (readLe16(&bmpHeader[26]) != 1) {
     Serial.println(F("BMP planes value is invalid"));
     bmpFile.close();
     return false;
   }
 
-  uint16_t bitDepth = read16(bmpFile);
-  uint32_t compression = read32(bmpFile);
+  uint16_t bitDepth = readLe16(&bmpHeader[28]);
+  uint32_t compression = readLe32(&bmpHeader[30]);
   if (headerSize < 40 || bmpWidth <= 0 || bmpHeight == 0 || compression != 0 ||
       (bitDepth != BMP_SUPPORTED_DEPTH_24 && bitDepth != BMP_SUPPORTED_DEPTH_32)) {
     Serial.print(F("Unsupported BMP: header="));
