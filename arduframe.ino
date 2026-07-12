@@ -121,6 +121,7 @@ const unsigned long SERIAL_BAUD = 115200UL;
 const uint8_t SD_INIT_SPEEDS_MHZ[] = {4, 1, 10};
 const uint16_t BMP_READ_BUFFER_PIXELS = 40;
 const uint16_t BMP_PROGRESS_ROWS = 40;
+const uint16_t TFT_FALLBACK_IDS[] = {0x9341, 0x7783, 0x8347, 0x9486, 0x9488, 0x8357};
 
 MCUFRIEND_kbv tft;
 SdFat SD;
@@ -203,6 +204,56 @@ uint16_t detectTftController() {
   Serial.println(F("If the screen remains white, set ARDUFRAME_FORCE_TFT_ID to 0x7783 or 0x8347 and upload again."));
   return 0x9341;
 #endif
+}
+
+
+bool tftHasUsableGeometry() {
+  return tft.width() > 0 && tft.height() > 0;
+}
+
+bool initializeTftWithId(uint16_t id) {
+  tft.begin(id);
+  tft.setRotation(TFT_ROTATION);
+
+  Serial.print(F("TFT initialized as ID "));
+  printHex16(id);
+  Serial.print(F(", drawable size "));
+  Serial.print(tft.width());
+  Serial.print('x');
+  Serial.println(tft.height());
+
+  return tftHasUsableGeometry();
+}
+
+void initializeTft() {
+  activeTftId = detectTftController();
+  if (initializeTftWithId(activeTftId)) {
+    return;
+  }
+
+  Serial.println(F("TFT reported unusable drawable size; trying known MCUFRIEND-compatible IDs."));
+
+  for (uint8_t i = 0; i < sizeof(TFT_FALLBACK_IDS) / sizeof(TFT_FALLBACK_IDS[0]); i++) {
+    uint16_t fallbackId = TFT_FALLBACK_IDS[i];
+    if (fallbackId == activeTftId) {
+      continue;
+    }
+
+    Serial.print(F("Trying fallback TFT controller ID: "));
+    printHex16(fallbackId);
+    Serial.println();
+
+    if (initializeTftWithId(fallbackId)) {
+      activeTftId = fallbackId;
+      Serial.print(F("Using fallback TFT controller ID: "));
+      printHex16(activeTftId);
+      Serial.println();
+      return;
+    }
+  }
+
+  Serial.println(F("No fallback TFT ID produced a usable drawable size."));
+  Serial.println(F("Set ARDUFRAME_FORCE_TFT_ID to a controller ID that matches your shield and upload again."));
 }
 
 void drawTftSelfTest() {
@@ -469,16 +520,12 @@ void setup() {
   pinMode(SD_CS, OUTPUT);
   digitalWrite(SD_CS, HIGH);
 
-  activeTftId = detectTftController();
-  tft.begin(activeTftId);
-  tft.setRotation(TFT_ROTATION);
-
-  Serial.print(F("TFT initialized as ID "));
-  printHex16(activeTftId);
-  Serial.print(F(", drawable size "));
-  Serial.print(tft.width());
-  Serial.print('x');
-  Serial.println(tft.height());
+  initializeTft();
+  if (!tftHasUsableGeometry()) {
+    while (true) {
+      delay(1000);
+    }
+  }
 
   // This appears before any SD-card access. If it stays white, the LCD
   // controller ID/library is still wrong; the BMP and SD code are not involved.
