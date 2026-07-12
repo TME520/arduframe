@@ -25,7 +25,7 @@
 #define TFT_ROTATION 1
 
 /*
-  Leave at 0 for automatic controller detection.
+  Force the controller used by the target 2.8-inch UNO-style TFT shield.
 
   If the Serial Monitor reports a useless ID, try one of these values:
     0x9341  - XC4630 v1 / ILI9341-like revision
@@ -35,7 +35,7 @@
   Example:
     #define ARDUFRAME_FORCE_TFT_ID 0x9341
 */
-#define ARDUFRAME_FORCE_TFT_ID 0x0000
+#define ARDUFRAME_FORCE_TFT_ID 0x9341
 
 // display constants
 
@@ -50,7 +50,7 @@ const uint16_t GRAY    = 0x520A;
 const uint16_t BLACK   = 0x0000;
 
 const uint16_t DISPLAY_WIDTH   = 320;
-const uint16_t DISPLAY_HEIGHT  = 480;
+const uint16_t DISPLAY_HEIGHT  = 240;
 
 // touch constants
 
@@ -76,7 +76,7 @@ const int YEND = 961;
 
 // application constants
 
-const uint16_t GRID_W = 240;
+const uint16_t GRID_W = 180;
 const uint16_t CELL_W = GRID_W/3;
 
 const uint16_t GRID_X = (DISPLAY_WIDTH - GRID_W)/2;
@@ -94,7 +94,7 @@ const uint16_t MARK_W = CELL_W - 40;
 const uint16_t MARK_THICKNESS = 9;
 
 const uint16_t MENU_W = 240;
-const uint16_t MENU_HEIGHT = 320;
+const uint16_t MENU_HEIGHT = 220;
 
 const uint16_t MENU_X = (DISPLAY_WIDTH - MENU_W)/2;
 const uint16_t MENU_Y = (DISPLAY_HEIGHT - MENU_HEIGHT)/2;
