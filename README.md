@@ -24,21 +24,21 @@ This sketch supports Arduino-compatible UNO-style parallel TFT touch shields wit
 - SD chip select / `SD_SS`: pin 10
 - SD SPI data/clock: pins 11, 12, and 13
 
-The default UNO-style display controller is `ILI9341`, because brandless AliExpress shields marked `2.8 TFT LCD Shield` with this exact pinout are normally 2.8-inch 240x320 panels. If Serial says images are displayed successfully but the screen stays white, the LCD backlight is powered but the controller probably was initialized with the wrong driver. For a larger 3.5-inch 320x480 ILI9486 shield, change the default near the top of `arduframe.ino` to:
+The default UNO-style display controller is forced to `0x9341` / `ILI9341`, because brandless AliExpress shields marked `2.8 TFT LCD Shield` with this exact pinout are normally 2.8-inch 240x320 panels that become 320x240 in landscape rotation. If Serial says images are displayed successfully but the screen stays white, the LCD backlight is powered but the controller probably was initialized with the wrong driver. For a larger 3.5-inch 320x480 ILI9486 shield, change the forced controller ID near the top of `arduframe.ino` to:
 
 ```cpp
-#define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_ILI9486
+#define ARDUFRAME_FORCE_TFT_ID 0x9486
 ```
 
 At every UNO-style startup, the sketch now runs a visible controller trial set before settling on the selected compile-time driver. Watch the LCD while Serial prints `TFT controller trial: ILI9341`, `ILI9486`, `ILI9488`, and `HX8357`: the first trial that shows red/green/blue stripes, diagonal lines, a center circle, and the driver label is the best controller candidate. Set `ARDUFRAME_TFT_CONTROLLER_TRIAL_SECONDS` to `0` to skip this startup trial once the display is identified, or increase it if you need more time to watch each candidate. If all trials stay white, the evidence points away from BMP or SD-card decoding and toward shield pin mapping, reset/control wiring, level compatibility, or a non-UNO-parallel shield.
 
-If the controller is still unknown, the sketch also supports a compile-and-upload trial matrix for likely UNO parallel shield controllers. Change `ARDUFRAME_TFT_DRIVER` to one of these values, upload, and watch both the Serial log and the startup color sequence:
+If the controller is still unknown, the sketch also supports a compile-and-upload trial matrix for likely UNO parallel shield controllers. Change `ARDUFRAME_FORCE_TFT_ID` to one of these values, upload, and watch both the Serial log and the startup color sequence:
 
 ```cpp
-#define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_ILI9341  // common 2.8-inch 240x320 shields
-#define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_ILI9486  // common 3.5-inch 320x480 shields
-#define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_ILI9488  // alternate 320x480 controller
-#define ARDUFRAME_TFT_DRIVER ARDUFRAME_TFT_HX8357   // alternate 320x480 controller
+#define ARDUFRAME_FORCE_TFT_ID 0x9341  // common 2.8-inch 240x320 shields
+#define ARDUFRAME_FORCE_TFT_ID 0x9486  // common 3.5-inch 320x480 shields
+#define ARDUFRAME_FORCE_TFT_ID 0x9488  // alternate 320x480 controller
+#define ARDUFRAME_FORCE_TFT_ID 0x8357  // alternate 320x480 controller
 ```
 
 
